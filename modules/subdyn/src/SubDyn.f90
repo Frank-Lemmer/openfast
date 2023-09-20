@@ -3566,6 +3566,7 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
    ! Variables for Eigenvalue analysis 
    real(R8Ki), dimension(:,:), allocatable :: AA, BB, CC, DD ! Linearization matrices
    character(len=*),parameter :: ReFmt='ES15.6E2'
+   character(len=*),parameter :: ReFmtKM='ES16.9E2'
    character(len=*),parameter :: SFmt='A15,1x' ! Need +1 for comma compared to ReFmt
    character(len=*),parameter :: IFmt='I7'
    !
@@ -3856,8 +3857,8 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
    ! --- Write assembed K M to a txt file
    WRITE(UnSum, '(A)') SectionDivide
    WRITE(UnSum, '(A, I6)') '#FULL FEM K and M matrices. TOTAL FEM TDOFs:', p%nDOF 
-   call yaml_write_array(UnSum, 'K', Init%K, ReFmt, ErrStat2, ErrMsg2, comment='Stiffness matrix')
-   call yaml_write_array(UnSum, 'M', Init%M, ReFmt, ErrStat2, ErrMsg2, comment='Mass matrix')
+   call yaml_write_array(UnSum, 'K', Init%K, ReFmtKM, ErrStat2, ErrMsg2, comment='Stiffness matrix')
+   call yaml_write_array(UnSum, 'M', Init%M, ReFmtKM, ErrStat2, ErrMsg2, comment='Mass matrix')
 
    ! --- write assembed GRAVITY FORCE FG VECTOR.  gravity forces applied at each node of the full system
    WRITE(UnSum, '(A)') SectionDivide
