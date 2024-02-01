@@ -94,7 +94,7 @@ PROGRAM SubDyn_HydroDyn_Driver
    TYPE(HydroDyn_InitInputType)                        :: InitInDataHD           ! Input data for initialization
    TYPE(HydroDyn_InitOutputType)                       :: InitOutDataHD          ! Output data from initialization
    
-   TYPE(HydroDyn_InputFile)                            :: InputFileData                       !< Data from input file
+   TYPE(HydroDyn_InputFile)                            :: InputFileDataHD                       !< Data from input file
 
    TYPE(HydroDyn_ContinuousStateType)                  :: xHD                    ! Continuous states
    !TYPE(HydroDyn_ContinuousStateType)                  :: x_new                ! Continuous states at updated time
@@ -202,16 +202,15 @@ PROGRAM SubDyn_HydroDyn_Driver
       InitInDataHD%UseInputFile = .TRUE. 
       !InitInDataHD%InputFile    = '..\..\reg_tests\r-test\modules\hydrodyn\hd_5MW_OC4Jckt_DLL_WTurb_WavesIrr_MGrowth\NRELOffshrBsline5MW_OC4Jacket_HydroDyn.dat'
       InitInDataHD%InputFile    = drvrInitInp%HDInputFile !'..\..\Taisei_Morison_HydroDyn_3.5.1.dat'
-      InitInDataHD%OutRootName  = '..\..\SubDyn-Hydrodyn.HDout.dat'
+      InitInDataHD%OutRootName  = 'SubDyn-Hydrodyn.HDout.dat'
       InitInDataHD%TMax         = TMax !From SD
       InitInDataHD%Linearize    = .FALSE.
    
       ! Initialize the module
-      CALL HydroDyn_Init( InitInDataHD, uHD(1), pHD,  xHD, xdHD, zHD, OtherStateHD, yHD, mHD, TimeInterval, InitOutDataHD, InputFileData, ErrStat, ErrMsg ) !TimeInterval from SD
+      CALL HydroDyn_Init( InitInDataHD, uHD(1), pHD,  xHD, xdHD, zHD, OtherStateHD, yHD, mHD, TimeInterval, InitOutDataHD, InputFileDataHD, ErrStat, ErrMsg ) !TimeInterval from SD
       if (ErrStat >= AbortErrLev) then
             ! Clean up missing
-         
-         ErrMsg2 = ' Error reading Hydrodyn Input file: '//trim(drvrInitInp%HDInputFile)
+         call WrScr(ErrMsg)
          call AbortIfFailed()
       end if
    end if
@@ -219,7 +218,7 @@ PROGRAM SubDyn_HydroDyn_Driver
    
    
    ! Initialize SubDyn module
-   CALL SD_Init( InitInData, u(1), p,  x, xd, z, OtherState, y, m, TimeInterval, InitOutData, drvrInitInp%HDFlag, InputFileData%Morison, ErrStat2, ErrMsg2 ); call AbortIfFailed()
+   CALL SD_Init( InitInData, u(1), p,  x, xd, z, OtherState, y, m, TimeInterval, InitOutData, drvrInitInp%HDFlag, InputFileDataHD%Morison, ErrStat2, ErrMsg2 ); call AbortIfFailed()
 
    ! Sanity check for outputs
    if (p%NumOuts==0) then
