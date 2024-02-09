@@ -1164,11 +1164,7 @@ SUBROUTINE AssembleKM(Init, p, HDFlag, HDInputDataMor, ErrStat, ErrMsg)
    
    !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
    REAL(FEKi)               :: Ma(12, 12)
-   REAL(FEKi)               :: WaterDensity
-   real(FEKi), dimension(:)  , allocatable :: HDCA !Added mass coefficient for circular cross-secs
-   real(FEKi), dimension(:)  , allocatable :: HDA  !Area of circular cross-section of wetted hull
-   real(FEKi), dimension(:)  , allocatable :: HDCAX !Added mass coefficient for circular cross-secs
-   real(FEKi), dimension(:)  , allocatable :: HDAX  !Area of circular cross-section of wetted hull
+   REAL(FEKi)               :: WaterDensity, HDRad
    !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
                            
    REAL(FEKi)               :: Ke(12,12), Me(12, 12), FGe(12) ! element stiffness and mass matrices gravity force vector
@@ -1197,10 +1193,11 @@ SUBROUTINE AssembleKM(Init, p, HDFlag, HDInputDataMor, ErrStat, ErrMsg)
    p%FG    = 0.0_FEKi
    
    !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
-   Ma = 0.0
-   
+   ALLOCATE( p%NodeAddedMass(p%NNodes), STAT=ErrStat2); ErrMsg2='Error allocating p%NodeAddedMass'
+   if(Failed()) return
+
    if (HDFlag ) then
-      CALL GetHDAddedMassForSDElements(Init, p, HDInputDataMor, HDCA, HDA, HDCAX, HDAX, ErrStat, ErrMsg)
+      CALL GetHDAddedMassForSDElements(Init, p, HDInputDataMor, ErrStat, ErrMsg)
       WaterDensity = 1025.
    end if
    !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
@@ -1217,11 +1214,11 @@ SUBROUTINE AssembleKM(Init, p, HDFlag, HDInputDataMor, ErrStat, ErrMsg)
       !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
       !Added mass:
       if (HDFlag ) then
-         if (p%ElemProps(i)%eType==idMemberRigid .AND. HDCA(i) > 0.1) then
+         if (p%ElemProps(i)%eType==idMemberRigid .AND. p%ElemProps(i)%AddedMass%HDCA > 0.1) then
             ErrMsg2='Added mass associated with rigid element, this is not implemented yet. Problematic element: '//trim(Num2LStr(i)); ErrStat2=ErrID_Fatal;
             if(Failed()) return
          endif
-         CALL ElemA(p%ElemProps(i)%Length, p%ElemProps(i)%Ixx, p%ElemProps(i)%Iyy, HDCA(i), HDA(i), WaterDensity, p%ElemProps(i)%DirCos, Ma)
+         CALL ElemA(p%ElemProps(i)%Length, p%ElemProps(i)%Ixx, p%ElemProps(i)%Iyy, p%ElemProps(i)%AddedMass%HDCa, p%ElemProps(i)%AddedMass%HDArea, WaterDensity, p%ElemProps(i)%DirCos, Ma)
       end if
       !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
 
@@ -1243,17 +1240,17 @@ SUBROUTINE AssembleKM(Init, p, HDFlag, HDInputDataMor, ErrStat, ErrMsg)
    ! Add axial added mass to mass matrix
    IF (HDFlag ) then
       DO iNode = 1, p%NNodes
-      
-         if (HDCAX(iNode) > 0.0) then
-            ! Safety check (otherwise we might have more than 6 DOF)
+
+         if (p%NodeAddedMass(iNode)%HDCa > 0.0) then
             if (Init%Nodes(iNode,iJointType) /= idJointCantilever) then
                ErrMsg2='Axial added mass can only be added as concentrated mass for cantilever joints. Problematic node: '//trim(Num2LStr(iNode)); ErrStat2=ErrID_Fatal;
                if(Failed()) return
             endif
             ! Mass matrix of a rigid body
             M66 = 0.0_ReKi
-            M66(3,3) =  HDCAX(iNode)*WaterDensity*2.0/3.0*Pi*(HDAX(iNode)**3/8.0) !Only vertical!!
-
+            HDRad = SQRT(p%NodeAddedMass(iNode)%HDArea/Pi)
+            M66(3,3) =  p%NodeAddedMass(iNode)%HDCa*WaterDensity*2.0/3.0*Pi*HDRad**3 !Only vertical!!
+         
             ! Adding
             DO J = 1, 6
                jGlob = p%NodesDOF(iNode)%List(J)
@@ -1340,13 +1337,11 @@ END SUBROUTINE AssembleKM
 
    
  !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
-SUBROUTINE GetHDAddedMassForSDElements(Init, p, HDInputDataMor, HDCA, HDA, HDCAX, HDAX, ErrStat, ErrMsg)
+SUBROUTINE GetHDAddedMassForSDElements(Init, p, HDInputDataMor, ErrStat, ErrMsg)
    TYPE(SD_InitType),                        INTENT(IN)              :: Init
    TYPE(SD_ParameterType),                   INTENT(INOUT)           :: p
    TYPE(Morison_InitInputType),              INTENT(IN   )           :: HDInputDataMor    !Hydrodyn Parameters      
-   real(FEKi), dimension(:), allocatable,    INTENT(OUT)             :: HDCA, HDA !Element added mass coefficient and corresponding area for circular cross-secs
-   real(FEKi), dimension(:), allocatable,    INTENT(OUT)             :: HDCAX, HDAX !Axial added mass coefficient and corresponding area for circular cross-secs at both member ends (col1,2)
-   
+   !
    INTEGER(IntKi),               INTENT(  OUT) :: ErrStat     ! Error status of the operation
    CHARACTER(*),                 INTENT(  OUT) :: ErrMsg      ! Error message if ErrStat /= ErrID_None
    ! Local variables
@@ -1361,18 +1356,19 @@ SUBROUTINE GetHDAddedMassForSDElements(Init, p, HDInputDataMor, HDCA, HDA, HDCAX
    REAL(FEKi), dimension(3) :: NPos1, NPos2, NPos, MemberStartToEnd
    LOGICAL :: FOUND_SD, FOUND_SDAX
    
-      !Hydrodynamic coeffs for each SD element:
-   CALL AllocAry(HDCA, Init%NElem, 'HDCA', ErrStat, ErrMsg); if(ErrStat >= AbortErrLev) return
-   CALL AllocAry(HDA, Init%NElem, 'HDA', ErrStat, ErrMsg); if(ErrStat >= AbortErrLev) return
-   CALL AllocAry(HDCAX, p%NNodes, 'HDCAX', ErrStat, ErrMsg); if(ErrStat >= AbortErrLev) return
-   CALL AllocAry(HDAX, p%NNodes, 'HDAX', ErrStat, ErrMsg); if(ErrStat >= AbortErrLev) return
    EPS = 1.0e-6
    
-   !Initialize to zero:   
-   HDCA = 0.0
-   HDA  = 0.0
-   HDCAX = 0.0
-   HDAX  = 0.0
+   !Initialize element and nodal (axial) added mass to zero:
+   DO i = 1, size(p%ElemProps)
+      p%ElemProps(i)%AddedMass%HDCa = 0.0
+      p%ElemProps(i)%AddedMass%HDArea = 0.0
+   ENDDO
+   
+   DO i = 1, p%NNODES
+      p%NodeAddedMass(i)%HDCa = 0.0
+      p%NodeAddedMass(i)%HDArea = 0.0
+   ENDDO
+   
    
    !Loop over HD input members, get positions and coefficients -> map onto SD-Init%Nodes
    !This works only for member-based coefficients (option 3)
@@ -1383,6 +1379,7 @@ SUBROUTINE GetHDAddedMassForSDElements(Init, p, HDInputDataMor, HDCA, HDA, HDCAX
          return
       ENDIF
       
+     
       FOUND_SD = .false.
       FOUND_SDAX = .false.
         
@@ -1416,6 +1413,7 @@ SUBROUTINE GetHDAddedMassForSDElements(Init, p, HDInputDataMor, HDCA, HDA, HDCAX
          
          !Elements
          DO i = 1, size(p%ElemProps)
+           
              !Get SD node coordinates for each element (very hard to understand whether p%Elements contains node or joint index in col2/3)
              NIndx1 = p%Elems(i,2)
              NIndx2 = p%Elems(i,3)
@@ -1424,16 +1422,17 @@ SUBROUTINE GetHDAddedMassForSDElements(Init, p, HDInputDataMor, HDCA, HDA, HDCAX
 
              !Element coefficient:
              if (isBetweenAandB(JPosHd(:,1), JPosHd(:,2), NPos1) .AND. isBetweenAandB(JPosHd(:,1), JPosHd(:,2), NPos2)) then 
-                HDCA(i) = (CA(1) + CA(2))/2.
-                HDA(i)  = Pi*((D(1)+D(2))/2.)**2/4.0
+                p%ElemProps(i)%AddedMass%HDCa    = (CA(1) + CA(2))/2.
+                p%ElemProps(i)%AddedMass%HDArea  = Pi*((D(1)+D(2))/2.)**2/4.0
                 FOUND_SD = .true.
              endif
          ENDDO
          
          
          !Loop over SubDyn nodes to find the one matching a possible axial coefficient:
+        
          DO ijoint = 1, 2
-            
+
             !Find the axial coefficient for the two joints of this member:
             CAXIdx   = HDInputDataMor%INPJOINTS(JIndxHd(ijoint))%JOINTAXID
             CAX      = HDInputDataMor%AXIALCOEFS(CAXIdx)%AxCA
@@ -1441,6 +1440,7 @@ SUBROUTINE GetHDAddedMassForSDElements(Init, p, HDInputDataMor, HDCA, HDA, HDCAX
             if (CAX > 0.0) then
                
                DO i = 1, p%NNODES
+                  
          
                   NPos  = Init%NODES(i, 2:4)
          
@@ -1457,8 +1457,8 @@ SUBROUTINE GetHDAddedMassForSDElements(Init, p, HDInputDataMor, HDCA, HDA, HDCAX
                               call WrScr(ErrMsg)
                            else
                               FOUND_SDAX = .true.
-                              HDCAX(i) = CAX
-                              HDAX(i)  = D(ijoint)
+                              p%NodeAddedMass(i)%HDCa   = CAX
+                              p%NodeAddedMass(i)%HDArea = Pi*D(ijoint)**2/4.0
                            endif
                         endif
                      endif
@@ -2521,8 +2521,8 @@ end function isFloating
 SUBROUTINE ElemA(L, Ixx, Iyy, CA, Aadd, WaterDensity, DirCos, M)
    !TYPE(ElemPropType), INTENT(IN) :: eP     !< Element Property
    REAL(ReKi), INTENT( IN)        :: L, Ixx, Iyy
-   REAL(FEKi), INTENT(IN)         :: CA     !Added mass coefficient
-   REAL(FEKi), INTENT(IN)         :: Aadd   !Cross-section used for reference volume calculation for body-acceleration-dependent added mass (CA*D_hull^2/4*rho_water)
+   REAL(ReKi), INTENT(IN)         :: CA     !Added mass coefficient
+   REAL(ReKi), INTENT(IN)         :: Aadd   !Cross-section used for reference volume calculation for body-acceleration-dependent added mass (CA*D_hull^2/4*rho_water)
    REAL(FEKi), INTENT(IN)         :: WaterDensity 
    REAL(FEKi), INTENT( IN)        :: DirCos(3,3) !< From element to global: xg = DC.xe,  Kg = DC.Ke.DC^t
    REAL(FEKi), INTENT(OUT)        :: M(12, 12)

@@ -26,6 +26,11 @@ typedef  ^  CB_MatArrays  R8Ki     KBB     {:}{:}  -  -  "FULL KBB ( no constrai
 typedef  ^  CB_MatArrays  R8Ki     PhiL    {:}{:}  -  -  "Retained CB modes, possibly allPhiL(nDOFL,nDOFL), or PhiL(nDOFL,nDOFM)"
 typedef  ^  CB_MatArrays  R8Ki     PhiR    {:}{:}  -  -  "FULL PhiR ( no constraints applied)"
 typedef  ^  CB_MatArrays  R8Ki     OmegaL  {:}     -  -  "Eigenvalues of retained CB modes, possibly all (nDOFL or nDOFM)"
+
+#!-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+typedef  ^   AddedMassType  ReKi    HDArea    -  -  -  "HydroDyn element cross-sectional area "
+typedef  ^   AddedMassType  ReKi    HDCa      -  -  -  "HydroDyn element added mass coefficient"
+#!-------------Specific to this SubDyn-Hydrodyn coupling-----------------
 #
 typedef  ^   ElemPropType  IntKi   eType    -  -  -  "Element Type"
 typedef  ^   ElemPropType  ReKi    Length   -  -  -  "Length of an element"
@@ -43,6 +48,10 @@ typedef  ^   ElemPropType  ReKi    Area    -  -  -  "Area of an element" m^2
 typedef  ^   ElemPropType  ReKi    Rho     -  -  -  "Density"        kg/m^3
 typedef  ^   ElemPropType  ReKi    T0      -  -  -  "Pretension "    N
 typedef  ^   ElemPropType  R8Ki    DirCos  {3}{3}  -  -  "Element direction cosine matrix"
+
+#!-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+typedef  ^   ElemPropType  AddedMassType  AddedMass  -  -  "Element added mass from Hydrodyn"
+#!-------------Specific to this SubDyn-Hydrodyn coupling-----------------
 
 # ============================== Input Initialization (from glue code)  ============================================================================================================================================
 typedef  ^  InitInputType  CHARACTER(1024)  SDInputFile  - - -       "Name of the input file"
@@ -282,6 +291,9 @@ typedef  ^  ParameterType  Integer Jac_ny            -       - - "number of outp
 typedef  ^  ParameterType  Integer Jac_nx            -       - - "half the number of continuous states in jacobian matrix" -
 typedef  ^  ParameterType  logical RotStates         -       - - "Orient states in rotating frame during linearization? (flag)" -
 
+#!-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+typedef  ^  ParameterType  AddedMassType    NodeAddedMass   {:}   - -  "Axial added mass"
+#!-------------Specific to this SubDyn-Hydrodyn coupling-----------------
 # ============================== Inputs ============================================================================================================================================
 typedef  ^  InputType   MeshType    TPMesh         -       -   - "Transition piece inputs on a point mesh"
 typedef  ^  InputType   MeshType    LMesh          -       -   - "Point mesh for interior node inputs"
