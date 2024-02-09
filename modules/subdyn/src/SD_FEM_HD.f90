@@ -1195,6 +1195,9 @@ SUBROUTINE AssembleKM(Init, p, HDFlag, HDInputDataMor, ErrStat, ErrMsg)
    !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
    ALLOCATE( p%NodeAddedMass(p%NNodes), STAT=ErrStat2); ErrMsg2='Error allocating p%NodeAddedMass'
    if(Failed()) return
+   
+   CALL AllocAry( Init%MA, p%nDOF, p%nDOF , 'Init%MA',  ErrStat2, ErrMsg2); if(Failed()) return; ! system mass matrix 
+   Init%MA  = 0.0_FEKi
 
    if (HDFlag ) then
       CALL GetHDAddedMassForSDElements(Init, p, HDInputDataMor, ErrStat, ErrMsg)
@@ -1228,11 +1231,10 @@ SUBROUTINE AssembleKM(Init, p, HDFlag, HDInputDataMor, ErrStat, ErrMsg)
       p%FG     ( IDOF )  = p%FG( IDOF )   + FGe(1:12)+ FCe(1:12) ! Note: gravity and pretension cable forces
       Init%K(IDOF, IDOF) = Init%K( IDOF, IDOF) + Ke(1:12,1:12)
       
-      
-      
       !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
       !Init%M(IDOF, IDOF) = Init%M( IDOF, IDOF) + Me(1:12,1:12)
       Init%M(IDOF, IDOF) = Init%M( IDOF, IDOF) + Me(1:12,1:12) + Ma(1:12,1:12)
+      Init%MA(IDOF, IDOF) = Init%MA( IDOF, IDOF) + Me(1:12,1:12)
       !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
    ENDDO
    

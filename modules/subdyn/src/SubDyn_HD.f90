@@ -3589,6 +3589,12 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
    character(len=*),parameter :: ReFmtKM='ES16.9E2'
    character(len=*),parameter :: SFmt='A15,1x' ! Need +1 for comma compared to ReFmt
    character(len=*),parameter :: IFmt='I7'
+   
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+   REAL(FEKi)               :: Ma(12, 12)
+   REAL(FEKi)               :: WaterDensity = 1025.
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+   
    !
    ErrStat = ErrID_None
    ErrMsg  = ""
@@ -3869,6 +3875,7 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
    CALL ElemM(p%ElemProps(1), Me)
    CALL ElemK(p%ElemProps(1), Ke)
    CALL ElemF(p%ElemProps(1), Init%g, FGe, FCe)
+   
    call yaml_write_array(UnSum, 'Ke',Ke, ReFmt, ErrStat2, ErrMsg2, comment='First element stiffness matrix')
    call yaml_write_array(UnSum, 'Me',Me, ReFmt, ErrStat2, ErrMsg2, comment='First element mass matrix')
    call yaml_write_array(UnSum, 'FGe',FGe, ReFmt, ErrStat2, ErrMsg2, comment='First element gravity vector')
@@ -3878,7 +3885,8 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
    WRITE(UnSum, '(A)') SectionDivide
    WRITE(UnSum, '(A, I6)') '#FULL FEM K and M matrices. TOTAL FEM TDOFs:', p%nDOF 
    call yaml_write_array(UnSum, 'K', Init%K, ReFmtKM, ErrStat2, ErrMsg2, comment='Stiffness matrix')
-   call yaml_write_array(UnSum, 'M', Init%M, ReFmtKM, ErrStat2, ErrMsg2, comment='Mass matrix')
+   call yaml_write_array(UnSum, 'M', Init%M, ReFmtKM, ErrStat2, ErrMsg2, comment='Mass matrix with added mass effect from Hydrodyn, if enabled ')
+   call yaml_write_array(UnSum, 'MA', Init%MA, ReFmtKM, ErrStat2, ErrMsg2, comment='M (without added mass effect from Hydrodyn) ')
 
    ! --- write assembed GRAVITY FORCE FG VECTOR.  gravity forces applied at each node of the full system
    WRITE(UnSum, '(A)') SectionDivide
