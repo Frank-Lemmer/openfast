@@ -3886,8 +3886,11 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
    WRITE(UnSum, '(A, I6)') '#FULL FEM K and M matrices. TOTAL FEM TDOFs:', p%nDOF 
    call yaml_write_array(UnSum, 'K', Init%K, ReFmtKM, ErrStat2, ErrMsg2, comment='Stiffness matrix')
    call yaml_write_array(UnSum, 'M', Init%M, ReFmtKM, ErrStat2, ErrMsg2, comment='Mass matrix (with added mass effect from Hydrodyn, if enabled)')
+   
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
    call yaml_write_array(UnSum, 'MG', Init%MG, ReFmtKM, ErrStat2, ErrMsg2, comment='Mass matrix (without added mass effect from Hydrodyn for Gravity force calculation) ')
-
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+   
    ! --- write assembed GRAVITY FORCE FG VECTOR.  gravity forces applied at each node of the full system
    WRITE(UnSum, '(A)') SectionDivide
    WRITE(UnSum, '(A)') '#Gravity and cable loads applied at each node of the system (before DOF elimination with T matrix)' 

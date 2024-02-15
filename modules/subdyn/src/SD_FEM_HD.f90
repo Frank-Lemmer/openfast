@@ -2031,6 +2031,9 @@ SUBROUTINE DirectElimination(Init, p, ErrStat, ErrMsg)
    integer(IntKi), dimension(:), allocatable :: RAm1 !< RA^-1(e) = a , for a given element give the index of a rigid assembly
    real(FEKi), dimension(:,:), allocatable :: MM, KK
    real(FEKi), dimension(:,:), allocatable :: Temp
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+   real(FEKi), dimension(:,:), allocatable :: MMG
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
    integer(IntKi) :: nDOF, iDOF, nDOFPerNode, iNode, iiDOF, i,j
    ErrStat = ErrID_None
    ErrMsg  = ""
@@ -2053,6 +2056,13 @@ SUBROUTINE DirectElimination(Init, p, ErrStat, ErrMsg)
       !  Reallocating
       CALL AllocAry( Init%K,      nDOF, nDOF,       'Init%K'   ,  ErrStat2, ErrMsg2); if(Failed()) return; ! system stiffness matrix 
       CALL AllocAry( Init%M,      nDOF, nDOF,       'Init%M'   ,  ErrStat2, ErrMsg2); if(Failed()) return; ! system mass matrix 
+      
+      !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+      MMG = Init%MG
+      deallocate(Init%MG)
+      CALL AllocAry( Init%MG,      nDOF, nDOF,       'Init%MG'   ,  ErrStat2, ErrMsg2); if(Failed()) return; ! system mass matrix 
+      !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+      
       CALL AllocAry( Temp   ,size(MM,1), nDOF,      'Temp'     ,  ErrStat2, ErrMsg2); if(Failed()) return; 
       CALL AllocAry( p%T_red_T,nDOF   , size(MM,1), 'T_red_T' ,  ErrStat2, ErrMsg2); if(Failed()) return; 
       ! --- Elimination (stack expensive)
@@ -2068,6 +2078,12 @@ SUBROUTINE DirectElimination(Init, p, ErrStat, ErrMsg)
       CALL LAPACK_gemm( 'N', 'N', 1.0_FeKi, MM     , p%T_red, 0.0_FeKi, Temp  , ErrStat2, ErrMsg2); if(Failed()) return
       !Init%M  = matmul(p%T_red_T, Temp)
       CALL LAPACK_gemm( 'T', 'N', 1.0_FeKi, p%T_red, Temp   , 0.0_FeKi, Init%M, ErrStat2, ErrMsg2); if(Failed()) return
+      !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+      !Temp    = matmul(MM, p%T_red)
+      CALL LAPACK_gemm( 'N', 'N', 1.0_FeKi, MMG     , p%T_red, 0.0_FeKi, Temp  , ErrStat2, ErrMsg2); if(Failed()) return
+      !Init%M  = matmul(p%T_red_T, Temp)
+      CALL LAPACK_gemm( 'T', 'N', 1.0_FeKi, p%T_red, Temp   , 0.0_FeKi, Init%MG, ErrStat2, ErrMsg2); if(Failed()) return
+      !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
       !Temp    = matmul(KK, p%T_red)
       CALL LAPACK_gemm( 'N', 'N', 1.0_FeKi, KK     , p%T_red, 0.0_FeKi, Temp  , ErrStat2, ErrMsg2); if(Failed()) return
       !Init%K  = matmul(p%T_red_T, Temp)
