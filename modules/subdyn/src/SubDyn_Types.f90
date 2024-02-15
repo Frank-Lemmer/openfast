@@ -164,7 +164,7 @@ IMPLICIT NONE
     REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: PropsR      !< Property sets and values for Rigid link [-]
     REAL(R8Ki) , DIMENSION(:,:), ALLOCATABLE  :: K      !< System stiffness matrix                 [-]
     REAL(R8Ki) , DIMENSION(:,:), ALLOCATABLE  :: M      !< System mass matrix (with added mass effect from Hydrodyn if enabled)    [-]
-    REAL(R8Ki) , DIMENSION(:,:), ALLOCATABLE  :: MA      !< System mass matrix without added mass effect from HydroDyn [-]
+    REAL(R8Ki) , DIMENSION(:,:), ALLOCATABLE  :: MG      !< System mass matrix without added mass effect from HydroDyn for Gravity force calculation [-]
     REAL(ReKi) , DIMENSION(:,:), ALLOCATABLE  :: ElemProps      !< Element properties(A, L, Ixx, Iyy, Jzz, Shear, Kappa, E, G, Rho, DirCos(1,1), DirCos(2, 1), ....., DirCos(3, 3) ) [-]
     INTEGER(IntKi) , DIMENSION(:,:), ALLOCATABLE  :: MemberNodes      !< Member number and list of nodes making up a member (>2 if subdivided) [-]
     INTEGER(IntKi) , DIMENSION(:,:), ALLOCATABLE  :: NodesConnN      !< Nodes that connect to a common node    [-]
@@ -3706,19 +3706,19 @@ IF (ALLOCATED(SrcInitTypeData%M)) THEN
   END IF
     DstInitTypeData%M = SrcInitTypeData%M
 ENDIF
-IF (ALLOCATED(SrcInitTypeData%MA)) THEN
-  i1_l = LBOUND(SrcInitTypeData%MA,1)
-  i1_u = UBOUND(SrcInitTypeData%MA,1)
-  i2_l = LBOUND(SrcInitTypeData%MA,2)
-  i2_u = UBOUND(SrcInitTypeData%MA,2)
-  IF (.NOT. ALLOCATED(DstInitTypeData%MA)) THEN 
-    ALLOCATE(DstInitTypeData%MA(i1_l:i1_u,i2_l:i2_u),STAT=ErrStat2)
+IF (ALLOCATED(SrcInitTypeData%MG)) THEN
+  i1_l = LBOUND(SrcInitTypeData%MG,1)
+  i1_u = UBOUND(SrcInitTypeData%MG,1)
+  i2_l = LBOUND(SrcInitTypeData%MG,2)
+  i2_u = UBOUND(SrcInitTypeData%MG,2)
+  IF (.NOT. ALLOCATED(DstInitTypeData%MG)) THEN 
+    ALLOCATE(DstInitTypeData%MG(i1_l:i1_u,i2_l:i2_u),STAT=ErrStat2)
     IF (ErrStat2 /= 0) THEN 
-      CALL SetErrStat(ErrID_Fatal, 'Error allocating DstInitTypeData%MA.', ErrStat, ErrMsg,RoutineName)
+      CALL SetErrStat(ErrID_Fatal, 'Error allocating DstInitTypeData%MG.', ErrStat, ErrMsg,RoutineName)
       RETURN
     END IF
   END IF
-    DstInitTypeData%MA = SrcInitTypeData%MA
+    DstInitTypeData%MG = SrcInitTypeData%MG
 ENDIF
 IF (ALLOCATED(SrcInitTypeData%ElemProps)) THEN
   i1_l = LBOUND(SrcInitTypeData%ElemProps,1)
@@ -3866,8 +3866,8 @@ ENDIF
 IF (ALLOCATED(InitTypeData%M)) THEN
   DEALLOCATE(InitTypeData%M)
 ENDIF
-IF (ALLOCATED(InitTypeData%MA)) THEN
-  DEALLOCATE(InitTypeData%MA)
+IF (ALLOCATED(InitTypeData%MG)) THEN
+  DEALLOCATE(InitTypeData%MG)
 ENDIF
 IF (ALLOCATED(InitTypeData%ElemProps)) THEN
   DEALLOCATE(InitTypeData%ElemProps)
@@ -4052,10 +4052,10 @@ ENDIF
     Int_BufSz   = Int_BufSz   + 2*2  ! M upper/lower bounds for each dimension
       Db_BufSz   = Db_BufSz   + SIZE(InData%M)  ! M
   END IF
-  Int_BufSz   = Int_BufSz   + 1     ! MA allocated yes/no
-  IF ( ALLOCATED(InData%MA) ) THEN
-    Int_BufSz   = Int_BufSz   + 2*2  ! MA upper/lower bounds for each dimension
-      Db_BufSz   = Db_BufSz   + SIZE(InData%MA)  ! MA
+  Int_BufSz   = Int_BufSz   + 1     ! MG allocated yes/no
+  IF ( ALLOCATED(InData%MG) ) THEN
+    Int_BufSz   = Int_BufSz   + 2*2  ! MG upper/lower bounds for each dimension
+      Db_BufSz   = Db_BufSz   + SIZE(InData%MG)  ! MG
   END IF
   Int_BufSz   = Int_BufSz   + 1     ! ElemProps allocated yes/no
   IF ( ALLOCATED(InData%ElemProps) ) THEN
@@ -4592,22 +4592,22 @@ ENDIF
         END DO
       END DO
   END IF
-  IF ( .NOT. ALLOCATED(InData%MA) ) THEN
+  IF ( .NOT. ALLOCATED(InData%MG) ) THEN
     IntKiBuf( Int_Xferred ) = 0
     Int_Xferred = Int_Xferred + 1
   ELSE
     IntKiBuf( Int_Xferred ) = 1
     Int_Xferred = Int_Xferred + 1
-    IntKiBuf( Int_Xferred    ) = LBOUND(InData%MA,1)
-    IntKiBuf( Int_Xferred + 1) = UBOUND(InData%MA,1)
+    IntKiBuf( Int_Xferred    ) = LBOUND(InData%MG,1)
+    IntKiBuf( Int_Xferred + 1) = UBOUND(InData%MG,1)
     Int_Xferred = Int_Xferred + 2
-    IntKiBuf( Int_Xferred    ) = LBOUND(InData%MA,2)
-    IntKiBuf( Int_Xferred + 1) = UBOUND(InData%MA,2)
+    IntKiBuf( Int_Xferred    ) = LBOUND(InData%MG,2)
+    IntKiBuf( Int_Xferred + 1) = UBOUND(InData%MG,2)
     Int_Xferred = Int_Xferred + 2
 
-      DO i2 = LBOUND(InData%MA,2), UBOUND(InData%MA,2)
-        DO i1 = LBOUND(InData%MA,1), UBOUND(InData%MA,1)
-          DbKiBuf(Db_Xferred) = InData%MA(i1,i2)
+      DO i2 = LBOUND(InData%MG,2), UBOUND(InData%MG,2)
+        DO i1 = LBOUND(InData%MG,1), UBOUND(InData%MG,1)
+          DbKiBuf(Db_Xferred) = InData%MG(i1,i2)
           Db_Xferred = Db_Xferred + 1
         END DO
       END DO
@@ -5286,7 +5286,7 @@ ENDIF
         END DO
       END DO
   END IF
-  IF ( IntKiBuf( Int_Xferred ) == 0 ) THEN  ! MA not allocated
+  IF ( IntKiBuf( Int_Xferred ) == 0 ) THEN  ! MG not allocated
     Int_Xferred = Int_Xferred + 1
   ELSE
     Int_Xferred = Int_Xferred + 1
@@ -5296,15 +5296,15 @@ ENDIF
     i2_l = IntKiBuf( Int_Xferred    )
     i2_u = IntKiBuf( Int_Xferred + 1)
     Int_Xferred = Int_Xferred + 2
-    IF (ALLOCATED(OutData%MA)) DEALLOCATE(OutData%MA)
-    ALLOCATE(OutData%MA(i1_l:i1_u,i2_l:i2_u),STAT=ErrStat2)
+    IF (ALLOCATED(OutData%MG)) DEALLOCATE(OutData%MG)
+    ALLOCATE(OutData%MG(i1_l:i1_u,i2_l:i2_u),STAT=ErrStat2)
     IF (ErrStat2 /= 0) THEN 
-       CALL SetErrStat(ErrID_Fatal, 'Error allocating OutData%MA.', ErrStat, ErrMsg,RoutineName)
+       CALL SetErrStat(ErrID_Fatal, 'Error allocating OutData%MG.', ErrStat, ErrMsg,RoutineName)
        RETURN
     END IF
-      DO i2 = LBOUND(OutData%MA,2), UBOUND(OutData%MA,2)
-        DO i1 = LBOUND(OutData%MA,1), UBOUND(OutData%MA,1)
-          OutData%MA(i1,i2) = REAL(DbKiBuf(Db_Xferred), R8Ki)
+      DO i2 = LBOUND(OutData%MG,2), UBOUND(OutData%MG,2)
+        DO i1 = LBOUND(OutData%MG,1), UBOUND(OutData%MG,1)
+          OutData%MG(i1,i2) = REAL(DbKiBuf(Db_Xferred), R8Ki)
           Db_Xferred = Db_Xferred + 1
         END DO
       END DO

@@ -1163,7 +1163,7 @@ SUBROUTINE AssembleKM(Init, p, HDFlag, HDInputDataMor, ErrStat, ErrMsg)
    INTEGER                  :: iGlob
    
    !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
-   REAL(FEKi)               :: Ma(12, 12)
+   REAL(FEKi)               :: Mg(12, 12)
    REAL(FEKi)               :: WaterDensity, HDRad
    !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
                            
@@ -1196,8 +1196,8 @@ SUBROUTINE AssembleKM(Init, p, HDFlag, HDInputDataMor, ErrStat, ErrMsg)
    ALLOCATE( p%NodeAddedMass(p%NNodes), STAT=ErrStat2); ErrMsg2='Error allocating p%NodeAddedMass'
    if(Failed()) return
    
-   CALL AllocAry( Init%MA, p%nDOF, p%nDOF , 'Init%MA',  ErrStat2, ErrMsg2); if(Failed()) return; ! system mass matrix 
-   Init%MA  = 0.0_FEKi
+   CALL AllocAry( Init%MG, p%nDOF, p%nDOF , 'Init%MG',  ErrStat2, ErrMsg2); if(Failed()) return; ! system mass matrix 
+   Init%MG  = 0.0_FEKi
 
    if (HDFlag ) then
       CALL GetHDAddedMassForSDElements(Init, p, HDInputDataMor, ErrStat, ErrMsg)
@@ -1221,7 +1221,7 @@ SUBROUTINE AssembleKM(Init, p, HDFlag, HDInputDataMor, ErrStat, ErrMsg)
             ErrMsg2='Added mass associated with rigid element, this is not implemented yet. Problematic element: '//trim(Num2LStr(i)); ErrStat2=ErrID_Fatal;
             if(Failed()) return
          endif
-         CALL ElemA(p%ElemProps(i)%Length, p%ElemProps(i)%Ixx, p%ElemProps(i)%Iyy, p%ElemProps(i)%AddedMass%HDCa, p%ElemProps(i)%AddedMass%HDArea, WaterDensity, p%ElemProps(i)%DirCos, Ma)
+         CALL ElemA(p%ElemProps(i)%Length, p%ElemProps(i)%Ixx, p%ElemProps(i)%Iyy, p%ElemProps(i)%AddedMass%HDCa, p%ElemProps(i)%AddedMass%HDArea, WaterDensity, p%ElemProps(i)%DirCos, Mg)
       end if
       !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
 
@@ -1233,8 +1233,8 @@ SUBROUTINE AssembleKM(Init, p, HDFlag, HDInputDataMor, ErrStat, ErrMsg)
       
       !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
       !Init%M(IDOF, IDOF) = Init%M( IDOF, IDOF) + Me(1:12,1:12)
-      Init%M(IDOF, IDOF) = Init%M( IDOF, IDOF) + Me(1:12,1:12) + Ma(1:12,1:12)
-      Init%MA(IDOF, IDOF) = Init%MA( IDOF, IDOF) + Me(1:12,1:12)
+      Init%M(IDOF, IDOF) = Init%M( IDOF, IDOF) + Me(1:12,1:12) + Mg(1:12,1:12)
+      Init%MG(IDOF, IDOF) = Init%MG( IDOF, IDOF) + Me(1:12,1:12)
       !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
    ENDDO
    
