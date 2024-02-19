@@ -1430,6 +1430,17 @@ SUBROUTINE GetHDAddedMassForSDElements(Init, p, HDInputDataMor, ErrStat, ErrMsg)
              endif
          ENDDO
          
+         IF (.NOT. FOUND_SD) then
+            ErrMsg='Failed to find SubDyn element for HydroDyn added mass coefficient, HD element start: '&
+               //trim(Num2LStr(JPosHd(1,1)))//', '&
+               //trim(Num2LStr(JPosHd(2,1)))//', '&
+               //trim(Num2LStr(JPosHd(3,1)))//', HD element end:'&
+               //trim(Num2LStr(JPosHd(1,2)))//', '&
+               //trim(Num2LStr(JPosHd(2,2)))//', '&
+               //trim(Num2LStr(JPosHd(3,2))); ErrStat=ErrID_Warn;
+            call WrScr(ErrMsg)
+         endif
+         
          
          !Loop over SubDyn nodes to find the one matching a possible axial coefficient:
         
@@ -1469,7 +1480,7 @@ SUBROUTINE GetHDAddedMassForSDElements(Init, p, HDInputDataMor, ErrStat, ErrMsg)
                ENDDO !SD-nodes
                
                IF (.NOT. FOUND_SDAX) then
-                  ErrMsg='Failed to find SubDyn element for HydroDyn axial added mass coefficient Joint1: '&
+                  ErrMsg='Failed to find SubDyn element for HydroDyn axial added mass coefficient Joint: '&
                      //trim(Num2LStr(JPosHd(1,ijoint)))//', '&
                      //trim(Num2LStr(JPosHd(2,ijoint)))//', '&
                      //trim(Num2LStr(JPosHd(3,ijoint))); ErrStat=ErrID_Warn;
