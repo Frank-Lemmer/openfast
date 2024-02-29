@@ -2557,6 +2557,67 @@ contains
    end function Failed
 END SUBROUTINE SD_Guyan_RigidBodyMass
 
+!-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+!> Extract rigid body mass without SSI
+!! NOTE: performs a Guyan reduction
+SUBROUTINE SD_Guyan_RigidBodyAddedMass(Init, p, MBB, ErrStat, ErrMsg)
+   type(SD_InitType),       intent(inout) :: Init       ! NOTE: Mass and Stiffness are modified but then set back to original
+   type(SD_ParameterType),  intent(in   ) :: p           ! Parameters
+   real(FEKi), allocatable, intent(out)   :: MBB(:,:)     !< MBB
+   integer(IntKi),          intent(  out) :: ErrStat !< Error status of the operation
+   character(*),            intent(  out) :: ErrMsg  !< error message if errstat /= errid_none   
+   integer(IntKi) :: nM, nR, nL, nM_out
+   real(FEKi), allocatable :: MBM(:, :)
+   real(FEKi), allocatable :: KBB(:, :)
+   real(FEKi), allocatable :: PhiL(:, :)
+   real(FEKi), allocatable :: PhiR(:, :)
+   real(FEKi), allocatable :: OmegaL(:)
+   character(*), parameter :: RoutineName = 'SD_Guyan_RigidBodyAddedMass'
+   integer(IntKi)          :: ErrStat2
+   character(ErrMsgLen)    :: ErrMsg2
+   
+   REAL(FEKi),allocatable   :: MA(:,:)
+   CALL AllocAry( MA, p%nDOF, p%nDOF , 'MA',  ErrStat2, ErrMsg2); if(Failed()) return; ! system mass matrix 
+   MA = Init%M - Init%MG
+
+   !Soild matrices don't apply for added mass, might disable (FL)
+   ! --- Remove SSI from Mass and stiffness matrix (NOTE: use NodesDOFred, reduced matrix)
+   CALL InsertSoilMatrices(Init%M, Init%K, p%NodesDOFred, Init, p, ErrStat2, ErrMsg2, Substract=.True.);
+
+   ! --- Perform Guyan reduction to get MBB
+   nR     = p%nDOFR__   ! Using interface + reaction nodes
+   nL     = p%nDOF__L
+   nM     = 0           ! No CB modes (Guyan)
+   nM_out = 0
+   if(allocated(MBB)) deallocate(MBB)
+   CALL AllocAry( MBB,    nR, nR, 'MBB',    ErrStat2, ErrMsg2 ); CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   CALL AllocAry( MBM,    nR, nM, 'MBM',    ErrStat2, ErrMsg2 ); CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   CALL AllocAry( KBB,    nR, nR, 'KBB',    ErrStat2, ErrMsg2 ); CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   CALL AllocAry( PhiL,   nL, nL, 'PhiL',   ErrStat2, ErrMsg2 ); CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   CALL AllocAry( PhiR,   nL, nR, 'PhiR',   ErrStat2, ErrMsg2 ); CALL SetErrStat( ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName)
+   CALL AllocAry( OmegaL, nL,     'OmegaL', ErrStat2, ErrMsg2 ); if(Failed()) return
+
+   CALL CraigBamptonReduction(MA, Init%K, p%IDR__, nR, p%ID__L, nL, nM, nM_Out, MBB, MBM, KBB, PhiL, PhiR, OmegaL, ErrStat2, ErrMsg2)
+   if(Failed()) return
+   
+   if(allocated(MA)   ) deallocate(MA)
+
+   if(allocated(KBB)   ) deallocate(KBB)
+   if(allocated(MBM)   ) deallocate(MBM)
+   if(allocated(PhiR)  ) deallocate(PhiR)
+   if(allocated(PhiL)  ) deallocate(PhiL)
+   if(allocated(OmegaL)) deallocate(OmegaL)
+
+   ! --- Insert SSI from Mass and stiffness matrix again
+   CALL InsertSoilMatrices(Init%M, Init%K, p%NodesDOFred, Init, p, ErrStat2, ErrMsg2, Substract=.False.); if(Failed()) return
+contains
+   logical function Failed()
+        call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName) 
+        Failed =  ErrStat >= AbortErrLev
+   end function Failed
+END SUBROUTINE SD_Guyan_RigidBodyAddedMass
+!-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+
 !------------------------------------------------------------------------------------------------------
 !> Set parameters to compute state and output equations
 !! NOTE: this function converst from FEKi to ReKi
@@ -3593,6 +3654,8 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
    !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
    REAL(FEKi)               :: Mg(12, 12)
    REAL(FEKi)               :: WaterDensity = 1025.
+   REAL(FEKi),allocatable   :: MA(:,:)    ! Leader DOFs mass matrix
+   REAL(ReKi)               :: M_A(6,6)    ! Equivalent mass matrix at origin
    !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
    
    !
@@ -3620,6 +3683,14 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
    ! Set TI2, transformation matrix from R DOFs to SubDyn Origin
    CALL AllocAry( TI2,    p%nDOFR__ , 6,       'TI2',    ErrStat2, ErrMsg2 ); if(Failed()) return
    CALL RigidTrnsf(Init, p, (/0._ReKi, 0._ReKi, 0._ReKi/), p%IDR__, p%nDOFR__, TI2, ErrStat2, ErrMsg2); if(Failed()) return
+   
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+   ! Calculate global generalized added mass matrix:
+   
+   call SD_Guyan_RigidBodyAddedMass(Init, p, MA, ErrStat2, ErrMsg2); if(Failed()) return
+   M_A=matmul(TRANSPOSE(TI2),matmul(MA,TI2)) !Equivalent mass matrix of the rigid body
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+   
    ! Compute Rigid body mass matrix (without Soil, and using both Interface and Reactions nodes as leader DOF)
    if (p%nDOFR__/=p%nDOF__Rb) then
       call SD_Guyan_RigidBodyMass(Init, p, MBB, ErrStat2, ErrMsg2); if(Failed()) return
@@ -3643,7 +3714,11 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
    call yaml_write_array(UnSum, 'MRB' , M_O     , ReFmt, ErrStat2, ErrMsg2, comment='Rigid Body Equivalent Mass Matrix w.r.t. (0,0,0).')
    call yaml_write_array(UnSum, 'M_P' , M_P     , ReFmt, ErrStat2, ErrMsg2, comment='Rigid Body Equivalent Mass Matrix w.r.t. TP Ref point')
    call yaml_write_array(UnSum, 'M_G' , M_G     , ReFmt, ErrStat2, ErrMsg2, comment='Rigid Body Equivalent Mass Matrix w.r.t. CM (Xcm,Ycm,Zcm).')
-
+   
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+   call yaml_write_array(UnSum, 'A' , M_A     , ReFmt, ErrStat2, ErrMsg2, comment='Added Mass Matrix w.r.t. (0,0,0), excluding structural mass.')
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+   
    ! --- write CB system KBBt and MBBt matrices, eq stiffness matrices of the entire substructure at the TP ref point
    WRITE(UnSum, '(A)') SectionDivide
    WRITE(UnSum, '(A)') '# GUYAN MATRICES at the TP reference point'

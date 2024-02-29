@@ -162,7 +162,7 @@ PROGRAM SubDyn_HydroDyn_Driver
    ! Obtain OpenFAST git commit hash
    git_commit = QueryGitVersion()
    ! Tell our users what they're running
-   CALL WrScr( ' Running '//TRIM( version%Name )//' by sowento 2024 - '//' a part of OpenFAST - '//TRIM(git_Commit)//NewLine//' linked with '//TRIM( NWTC_Ver%Name )//NewLine )
+   CALL WrScr( ' Running '//TRIM( version%Name )//' by sowento 2024 - '//' Coupling of HD and SD: HD-added mass (member-radial and joint-axial) will be added as inertial mass to SubDyn- '//' a part of OpenFAST - '//TRIM(git_Commit)//NewLine//' linked with '//TRIM( NWTC_Ver%Name )//NewLine )
    
    ! Set the abort error level to a fatal error
    AbortErrLev = ErrID_Fatal
