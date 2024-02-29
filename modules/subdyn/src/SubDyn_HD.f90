@@ -2582,7 +2582,7 @@ SUBROUTINE SD_Guyan_RigidBodyAddedMass(Init, p, MBB, ErrStat, ErrMsg)
 
    !Soild matrices don't apply for added mass, might disable (FL)
    ! --- Remove SSI from Mass and stiffness matrix (NOTE: use NodesDOFred, reduced matrix)
-   CALL InsertSoilMatrices(Init%M, Init%K, p%NodesDOFred, Init, p, ErrStat2, ErrMsg2, Substract=.True.);
+   CALL InsertSoilMatrices(MA, Init%K, p%NodesDOFred, Init, p, ErrStat2, ErrMsg2, Substract=.True.);
 
    ! --- Perform Guyan reduction to get MBB
    nR     = p%nDOFR__   ! Using interface + reaction nodes
@@ -2609,7 +2609,7 @@ SUBROUTINE SD_Guyan_RigidBodyAddedMass(Init, p, MBB, ErrStat, ErrMsg)
    if(allocated(OmegaL)) deallocate(OmegaL)
 
    ! --- Insert SSI from Mass and stiffness matrix again
-   CALL InsertSoilMatrices(Init%M, Init%K, p%NodesDOFred, Init, p, ErrStat2, ErrMsg2, Substract=.False.); if(Failed()) return
+   CALL InsertSoilMatrices(MA, Init%K, p%NodesDOFred, Init, p, ErrStat2, ErrMsg2, Substract=.False.); if(Failed()) return
 contains
    logical function Failed()
         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, RoutineName) 
