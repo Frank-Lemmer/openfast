@@ -1,11 +1,18 @@
 OpenFAST
 ========
 
-THIS FORK: Includes a coupling of SubDyn and HydroDyn in order to compute SubDyn mode shapes with added-mass coefficients of HydroDyn. 
-The resulting FE matrices can be imported into SLOW for an elastic modeling of the floater. 
-Radial and axial added mass coefficients can be implemented, drag is not considered. 
-Only the member-based option is possible in HydroDyn
-Axial added mass coefficients are only allowed for vertical members.
+THIS FORK: Includes a coupling of SubDyn and HydroDyn in order to compute SubDyn mode shapes with added-mass coefficients of HydroDyn:
+*Element added mass (radial)
+*Joint added mass (axial) 
+are considered, while drag, dynamic pressure, hydrostatics and other added mass (element axial) are not included.
+
+The resulting FE matrices can be imported into SLOW for an elastic modeling of the floater with an inclusion of added mass within the structural added mass matrix. 
+Only the member-based option is possible in HydroDyn.
+
+Hydrodyn and SubDyn need to have joints defined at the water surface.
+
+It turned out that rigid links make it impossible to use NDIV>1 in SubDyn.
+
 
 |actions| |nbsp| |rtfd|
 
