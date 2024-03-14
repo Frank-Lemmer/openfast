@@ -3647,7 +3647,7 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
    ! Variables for Eigenvalue analysis 
    real(R8Ki), dimension(:,:), allocatable :: AA, BB, CC, DD ! Linearization matrices
    character(len=*),parameter :: ReFmt='ES15.6E2'
-   character(len=*),parameter :: ReFmtKM='ES16.9E2'
+   character(len=*),parameter :: ReFmtKM='ES19.12E2'
    character(len=*),parameter :: SFmt='A15,1x' ! Need +1 for comma compared to ReFmt
    character(len=*),parameter :: IFmt='I7'
    
