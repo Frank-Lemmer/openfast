@@ -1186,9 +1186,11 @@ SUBROUTINE AssembleKM(Init, p, HDFlag, HDInputDataMor, ErrStat, ErrMsg)
    endif
 
    CALL AllocAry( Init%K, p%nDOF, p%nDOF , 'Init%K',  ErrStat2, ErrMsg2); if(Failed()) return; ! system stiffness matrix 
+   CALL AllocAry( Init%KFull, p%nDOF, p%nDOF , 'Init%K',  ErrStat2, ErrMsg2); if(Failed()) return; ! full system stiffness matrix 
    CALL AllocAry( Init%M, p%nDOF, p%nDOF , 'Init%M',  ErrStat2, ErrMsg2); if(Failed()) return; ! system mass matrix 
    CALL AllocAry( p%FG,   p%nDOF,          'p%FG'  ,  ErrStat2, ErrMsg2); if(Failed()) return; ! system gravity force vector 
    Init%K  = 0.0_FEKi
+   Init%KFull = 0.0_FEKi
    Init%M  = 0.0_FEKi
    p%FG    = 0.0_FEKi
    
@@ -1230,6 +1232,15 @@ SUBROUTINE AssembleKM(Init, p, HDFlag, HDInputDataMor, ErrStat, ErrMsg)
       IDOF = p%ElemsDOF(1:12, i)
       p%FG     ( IDOF )  = p%FG( IDOF )   + FGe(1:12)+ FCe(1:12) ! Note: gravity and pretension cable forces
       Init%K(IDOF, IDOF) = Init%K( IDOF, IDOF) + Ke(1:12,1:12)
+      Init%KFull(IDOF, IDOF) = Init%KFull( IDOF, IDOF) + Ke(1:12,1:12)
+      
+      !! Print IDOF values
+      !! Print elements of K indexed by IDOF
+      !do J = 1, 12
+      !   do K = 1, 12
+      !      write(*, '(A, I2, A, I2, A, E12.5)') 'Init%K(IDOF(', J, '),IDOF(', K, ')) = ', Init%K(IDOF(J), IDOF(K))
+      !   end do
+      !end do
       
       !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
       !Init%M(IDOF, IDOF) = Init%M( IDOF, IDOF) + Me(1:12,1:12)
@@ -2035,7 +2046,7 @@ SUBROUTINE DirectElimination(Init, p, ErrStat, ErrMsg)
    INTEGER(IntKi),               INTENT(  OUT) :: ErrStat     ! Error status of the operation
    CHARACTER(*),                 INTENT(  OUT) :: ErrMsg      ! Error message if ErrStat /= ErrID_None
    ! Local variables
-   INTEGER(IntKi)                            :: ErrStat2
+   INTEGER(IntKi)                            :: ErrStat2, II, JJ
    CHARACTER(ErrMsgLen)                      :: ErrMsg2
    ! Varaibles for rigid assembly
    type(IList), dimension(:), allocatable    :: RA       !< RA(a) = [e1,..,en]  list of elements forming a rigid link assembly
@@ -2097,8 +2108,14 @@ SUBROUTINE DirectElimination(Init, p, ErrStat, ErrMsg)
       !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
       !Temp    = matmul(KK, p%T_red)
       CALL LAPACK_gemm( 'N', 'N', 1.0_FeKi, KK     , p%T_red, 0.0_FeKi, Temp  , ErrStat2, ErrMsg2); if(Failed()) return
+          ! Print elements of K indexed by IDOF
       !Init%K  = matmul(p%T_red_T, Temp)
       CALL LAPACK_gemm( 'T', 'N', 1.0_FeKi, p%T_red, Temp   , 0.0_FeKi, Init%K, ErrStat2, ErrMsg2); if(Failed()) return
+      do II = 1, 12
+          do JJ = 1, 12
+             write(*, '(A, I2, A, I2, A, E12.5)') 'K(IDOF(', II, '),IDOF(', JJ, ')) = ',Init%K(II, JJ)
+          end do
+      end do
       if (allocated(Temp))    deallocate(Temp)
    endif
    !CALL AllocAry( Init%D,      nDOF, nDOF,  'Init%D'   ,  ErrStat2, ErrMsg2); if(Failed()) return; ! system damping matrix 

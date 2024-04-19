@@ -199,6 +199,7 @@ SUBROUTINE SD_Init( InitInput, u, p, x, xd, z, OtherState, y, m, Interval, InitO
    TYPE(SD_InitType)    :: Init
    TYPE(CB_MatArrays)   :: CBparams      ! CB parameters to be stored and written to summary file
    integer(IntKi) :: nOmega
+   integer(IntKi) :: JJ, KK
    real(FEKi), dimension(:,:), allocatable :: Modes
    real(FEKi), dimension(:,:), allocatable :: Modes_GY       ! Guyan modes
    real(FEKi), dimension(:)  , allocatable :: Omega
@@ -297,7 +298,6 @@ SUBROUTINE SD_Init( InitInput, u, p, x, xd, z, OtherState, y, m, Interval, InitO
    CALL AssembleKM(Init, p, HDFlag, HDInputDataMor, ErrStat2, ErrMsg2); if(Failed()) return
    !CALL AssembleKM(Init, p, ErrStat2, ErrMsg2); if(Failed()) return
    !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
-   
    
    ! Insert soil stiffness and mass matrix (NOTE: using NodesDOF, unreduced matrix)
    CALL InsertSoilMatrices(Init%M, Init%K, p%NodesDOF, Init, p, ErrStat2, ErrMsg2); if(Failed()) return
@@ -3960,6 +3960,7 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
    WRITE(UnSum, '(A)') SectionDivide
    WRITE(UnSum, '(A, I6)') '#FULL FEM K and M matrices. TOTAL FEM TDOFs:', p%nDOF 
    call yaml_write_array(UnSum, 'K', Init%K, ReFmtKM, ErrStat2, ErrMsg2, comment='Stiffness matrix')
+   call yaml_write_array(UnSum, 'KFull', Init%KFull, ReFmtKM, ErrStat2, ErrMsg2, comment='Full Stiffness matrix')
    call yaml_write_array(UnSum, 'M', Init%M, ReFmtKM, ErrStat2, ErrMsg2, comment='Mass matrix (with added mass effect from Hydrodyn, if enabled)')
    
    !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
