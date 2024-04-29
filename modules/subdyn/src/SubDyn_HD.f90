@@ -3789,6 +3789,9 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
    WRITE(UnSum, '(A)') '#     Node No.,  DOF/Node,   NodalDOF'
    call yaml_write_array(UnSum, 'DOF2Nodes', p%DOFred2Nodes , IFmt, ErrStat2, ErrMsg2, comment='(nDOFRed x 3, for each constrained DOF, col1: node index, col2: number of DOF, col3: DOF starting from 1)',label=.true.)
 
+   WRITE(UnSum, '(A)') '#Index map from elements to DOF'
+   WRITE(UnSum, '(A)') '#DOF'
+   call yaml_write_array(UnSum, 'Elems2DOF', p%ElemsDOF, IFmt, ErrStat2, ErrMsg2, comment='(test)',label=.true.)
    ! Nodes properties
    write(UnSum, '("#",4x,1(A9),8('//trim(SFmt)//'))') 'Node_[#]', 'X_[m]','Y_[m]','Z_[m]', 'JType_[-]', 'JDirX_[-]','JDirY_[-]','JDirZ_[-]','JStff_[Nm/rad]'
    call yaml_write_array(UnSum, 'Nodes', Init%Nodes, ReFmt, ErrStat2, ErrMsg2, AllFmt='1(F8.0,","),3(F15.3,","),(F15.0,","),3(ES15.6,","),ES15.6') !, comment='',label=.true.)
