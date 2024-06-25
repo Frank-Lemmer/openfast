@@ -542,6 +542,10 @@ SUBROUTINE SD_CalcOutput( t, u, p, x, xd, z, OtherState, y, m, ErrStat, ErrMsg )
       ! - We only apply the lever arm for       (fixed-bottom case + GuyanLoadCorrection)
       ! - We only rotate the external loads for (floating case + GuyanLoadCorrection)
       call GetExtForceOnInternalDOF(u, p, x, m, m%F_L, ErrStat2, ErrMsg2, GuyanLoadCorrection=(p%GuyanLoadCorrection.and..not.p%Floating), RotateLoads=(p%GuyanLoadCorrection.and.p%Floating)); if(Failed()) return
+      
+      ! Output F_L to the console
+      !WRITE(*,*) "External force on internal nodes (F_L): ", m%F_L
+      
       ! --- CB modes contribution to motion (L-DOF only)
       if ( p%nDOFM > 0) then
          if (p%GuyanLoadCorrection.and.p%Floating) then ! >>> Rotate All
@@ -580,11 +584,18 @@ SUBROUTINE SD_CalcOutput( t, u, p, x, xd, z, OtherState, y, m, ErrStat, ErrMsg )
       if (p%SttcSolve/=idSIM_None) then
          m%F_L2    = MATMUL(p%PhiL_T      , m%F_L) ! NOTE: Gravity in F_L
          m%UL_SIM  = MATMUL(p%PhiLInvOmgL2, m%F_L2)
+         
+         !WRITE(*,*) "Dimensions of F_L2: ", SIZE(m%F_L2)
+         !WRITE(*,*) "Dimensions of PhiL_T: ", SIZE(p%PhiL_T, 1), " x ", SIZE(p%PhiL_T, 2)
+         
          if ( p%nDOFM > 0) then
             m%UL_0m = MATMUL(p%PhiLInvOmgL2(:,1:p%nDOFM), m%F_L2(1:p%nDOFM)       )
             m%UL_SIM = m%UL_SIM - m%UL_0m
+                     
          end if          
          m%UL = m%UL + m%UL_SIM
+         
+         !WRITE(*,*) "Updated m%UL: ", m%UL(2), " m%UL_SIM: ", m%UL_SIM(2)
       endif    
 
       ! --- Build original DOF vectors ("full", prior to constraints and CB)
@@ -3337,6 +3348,7 @@ SUBROUTINE GetExtForceOnInternalDOF(u, p, x, m, F_L, ErrStat, ErrMsg, GuyanLoadC
       m%Fext( p%NodesDOF(iNode)%List(6::3)) = Moment(3)/nMembers
    enddo
 
+
    ! --- Reduced vector of external force
    if (p%reduced) then
       m%Fext_red = matmul(p%T_red_T, m%Fext) ! TODO use LAPACK
@@ -3973,7 +3985,7 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
    ! --- write assembed GRAVITY FORCE FG VECTOR.  gravity forces applied at each node of the full system
    WRITE(UnSum, '(A)') SectionDivide
    WRITE(UnSum, '(A)') '#Gravity and cable loads applied at each node of the system (before DOF elimination with T matrix)' 
-   call yaml_write_array(UnSum, 'FG', p%FG, ReFmt, ErrStat2, ErrMsg2, comment='')
+   call yaml_write_array(UnSum, 'FG', p%FG, ReFmtKM, ErrStat2, ErrMsg2, comment='')
       
    ! --- write CB system matrices
    WRITE(UnSum, '(A)') SectionDivide
@@ -3989,7 +4001,7 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
    call yaml_write_array(UnSum, 'KMMdiag', p%KMMDiag, ReFmt, ErrStat2, ErrMsg2, comment='(diagonal components, OmegaL^2)')
    IF (p%SttcSolve/= idSIM_None) THEN
       call yaml_write_array(UnSum, 'PhiL', transpose(p%PhiL_T), ReFmtKM, ErrStat2, ErrMsg2, comment='')
-      call yaml_write_array(UnSum, 'PhiLOm2-1', p%PhiLInvOmgL2, ReFmt, ErrStat2, ErrMsg2, comment='')
+      call yaml_write_array(UnSum, 'PhiLOm2-1', p%PhiLInvOmgL2, ReFmtKM, ErrStat2, ErrMsg2, comment='')
       call yaml_write_array(UnSum, 'KLL^-1'   , p%KLLm1       , ReFmt, ErrStat2, ErrMsg2, comment='')
    endif
    ! --- Reduction info
