@@ -2111,11 +2111,6 @@ SUBROUTINE DirectElimination(Init, p, ErrStat, ErrMsg)
           ! Print elements of K indexed by IDOF
       !Init%K  = matmul(p%T_red_T, Temp)
       CALL LAPACK_gemm( 'T', 'N', 1.0_FeKi, p%T_red, Temp   , 0.0_FeKi, Init%K, ErrStat2, ErrMsg2); if(Failed()) return
-      do II = 1, 12
-          do JJ = 1, 12
-             write(*, '(A, I2, A, I2, A, E12.5)') 'K(IDOF(', II, '),IDOF(', JJ, ')) = ',Init%K(II, JJ)
-          end do
-      end do
       if (allocated(Temp))    deallocate(Temp)
    endif
    !CALL AllocAry( Init%D,      nDOF, nDOF,  'Init%D'   ,  ErrStat2, ErrMsg2); if(Failed()) return; ! system damping matrix 
