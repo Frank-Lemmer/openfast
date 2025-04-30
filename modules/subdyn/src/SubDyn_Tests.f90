@@ -323,16 +323,18 @@ contains
       character(ErrMsgLen), intent(out) :: ErrMsg
 
       real(ReKi), dimension(3) :: P1, P2, e1, e2, e3
+      integer(IntKi) :: eType
       real(FEKi), dimension(3,3) :: DirCos, Ref
       real(ReKi), dimension(6,6) :: T, Tref
-      real(ReKi) :: L
+      real(ReKi) :: L, spin
       integer(IntKi) :: I
       testname='Transf'
 
       ! --- DirCos
       P1=(/0,0,0/)
       P2=(/2,0,0/)
-      call GetDirCos(P1, P2, DirCos, L, ErrStat, ErrMsg)
+      spin = 0.0
+      call GetDirCos(P1, P2, spin, eType, DirCos, L, ErrStat, ErrMsg)
       Ref = reshape( (/0_FEKi,-1_FEKi,0_FEKi, 0_FEKi, 0_FEKi, -1_FEKi, 1_FEKi, 0_FEKi, 0_FEKi/) , (/3,3/))
       call  test_almost_equal('DirCos',Ref,DirCos,1e-8_FEKi,.true.,.true.)
 

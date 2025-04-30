@@ -9,7 +9,7 @@ turbines within a wind farm. FAST.Farm uses
 `OpenFAST <https://github.com/OpenFAST/openfast>`__ to solve the
 aero-hydro-servo-elastic dynamics of each individual turbine, but
 considers additional physics for wind-farm-wide ambient wind in the
-atmospheric boundary layer; a wind-farm super controller; and wake
+atmospheric boundary layer; and wake
 deficits, advection, deflection, meandering, and merging. FAST.Farm is
 based on the principles of the DWM model -- including passive tracer
 modeling of wake meandering -- but addresses many of the limitations of
@@ -24,7 +24,8 @@ The main idea behind the DWM model is to capture key wake features
 pertinent to accurate prediction of wind farm power performance and wind
 turbine loads, including the wake-deficit evolution (important for
 performance) and the wake meandering and wake-added turbulence
-(important for loads). Although fundamental laws of physics are applied,
+(important for loads, see :numref:`FF:WAT`).
+Although fundamental laws of physics are applied,
 appropriate simplifications have been made to minimize the computational
 expense, and HFM solutions are used to inform and calibrate the
 submodels. In the DWM model, the wake-flow processes are treated via the
@@ -74,7 +75,7 @@ the wake.
 
 Wake-added turbulence is the additional small-scale turbulence generated
 from the turbulent mixing in the wake. It is often modeled in DWM by
-scaling up the background (undisturbed) turbulence.
+scaling up the background (undisturbed) turbulence (see :numref:`FF:WAT`).
 
 Several variations of DWM have been implemented, e.g., by the Technical
 University of Denmark (:cite:`ff-Madsen10_1,ff-Madsen16_1`) and the University
@@ -99,9 +100,6 @@ appropriate in the next section.
    |    not coherent across the wind  |                                  |
    |    farm or based on mesoscale    |                                  |
    |    conditions or local terrain.  |                                  |
-   +----------------------------------+----------------------------------+
-   | -  No treatment of a wind farm   | -  Optional inclusion of a wind  |
-   |    super controller.             |    farm super controller.        |
    +----------------------------------+----------------------------------+
    | -  Wake advects at mean ambient  | -  Wake advects based on the     |
    |    wind speed, not accelerating  |    local spatially averaged      |
@@ -177,8 +175,8 @@ code. The submodel hierarchy of FAST.Farm is illustrated in
 near-wake correction; and wake-deficit increment are submodels of the
 wake-dynamics (*WD*) model, implemented in a single module. Ambient wind
 and wake merging are submodels of the ambient wind and array effects
-(*AWAE*) model, implemented in a single module. Combined with the super
-controller (*SC*) and OpenFAST (*OF*) modules, FAST.Farm has four
+(*AWAE*) model, implemented in a single module. Combined with the 
+OpenFAST (*OF*) modules, FAST.Farm has three
 modules and one driver. There are multiple instances of the *OF* and
 *WD* modules -- one instance for each wind turbine/rotor. Each
 submodel/module is described in the subsections below.
@@ -190,7 +188,7 @@ computational tasks among the cores/threads within a node (but not
 between nodes) to speed up a single simulation. This process is
 illustrated in :numref:`FF:Parallel` for a node where the number of
 threads (:math:`N_{Th}`) is greater than the number of wind turbines
-(:math:`N_t`). There is one instance of the *AWAE* and *SC* modules and
+(:math:`N_t`). There is one instance of the *AWAE* modules and
 :math:`N_t` instances of the *OF* and *WD* modules. The initialization,
 update states, calculate output, and end calls to each module are shown.
 The output calculation of *AWAE* is parallelized across all threads.
@@ -249,7 +247,7 @@ mathematically as: [1]_
        x^d\left[ n+1 \right]=X^d\left( x^d\left[ n \right],u^d\left[ n \right],n \right)\\
        y^d\left[ n \right]=Y^d\left( x^d\left[ n \right],u^d\left[ n \right],n \right)\end{aligned}
 
-The *SC*, *OF*, and *WD* modules do not have direct feedthrough of input
+The *OF*, and *WD* modules do not have direct feedthrough of input
 to output, meaning that the corresponding output functions simplify to
 :math:`y^d\left[ n \right]=Y^d\left( x^d\left[ n \right],n \right)`. The
 ability of the *OF* module to be written in the above form is explained
@@ -261,7 +259,7 @@ functions in this manual, square brackets :math:`\left[\quad\right]`
 denote discrete functions and round parentheses
 :math:`\left(\quad\right)` denote continuous functions; the
 brackets/parentheses are dropped when implied. The states, inputs, and
-outputs of each of the FAST.Farm modules (*SC*, *OF*, *WD*, and *AWAE*)
+outputs of each of the FAST.Farm modules (*OF*, *WD*, and *AWAE*)
 are listed in :numref:`FF:tab:modules` and explained further in the
 sections below.
 
@@ -271,9 +269,6 @@ sections below.
    +-----------------------------------------+---------------------------------------------------------------------------------+---------------------------------------------------------------------+----------------------------------------------------------------------+
    | **Module**                              | **States (Discrete Time)**                                                      | **Inputs**                                                          | **Outputs**                                                          |
    +=========================================+=================================================================================+=====================================================================+======================================================================+
-   | *Super Controller (SC)*                 | - User-defined                                                                  | - Global measurements                                               | - Global controller commands                                         |
-   |                                         |                                                                                 | - Commands/measurements from individual turbine controllers         | - Commands to individual turbine controllers                         |
-   +-----------------------------------------+---------------------------------------------------------------------------------+---------------------------------------------------------------------+----------------------------------------------------------------------+
    | *OpenFAST (OF)*                         | -  None in the OpenFAST wrapper, but there are many states internal to OpenFAST | - Global controller commands                                        | - Commands/measurements from the individual turbine controller       |
    |                                         |                                                                                 | - Commands to the individual turbine controller                     | - :math:`\hat{x}^\text{Disk}`                                        |
    |                                         |                                                                                 | - :math:`\vec{V}_\text{Dist}^\text{High}`                           | - :math:`\vec{p}^\text{Hub}`                                         |
@@ -288,7 +283,7 @@ sections below.
    |                                         | For :math:`0 \le n_p \le N_p-1`:                                                | - :math:`\gamma^\text{YawErr}`                                      | - :math:`\vec{p}_{n_p}^\text{Plane}`                                 |
    |                                         |                                                                                 | - :math:`^\text{DiskAvg}V_x^\text{Rel}`                             | - :math:`V_{x_{n_p}}^\text{Wake}\left(r\right)`                      |
    |                                         | - :math:`^\text{Filt}D_{n_p}^\text{Rotor}`                                      | - :math:`^\text{AzimAvg}C_t\left(r\right)`                          | - :math:`V_{r_{n_p}}^\text{Wake}\left(r\right)`                      |
-   |                                         | - :math:`^\text{Filt}\gamma_{n_p}^\text{YawErr}`                                | - :math:`\vec{V}_{n_p}^\text{Plane}` for :math:`0 \len_p \le N_p-1` | - :math:`D_{n_p}^\text{Wake}`                                        |
+   |                                         | - :math:`^\text{Filt}\gamma_{n_p}^\text{YawErr}`                                | - :math:`\vec{V}_{n_p}^\text{Plane}` for :math:`0\le n_p \le N_p-1` | - :math:`D_{n_p}^\text{Wake}`                                        |
    |                                         | - :math:`^\text{Filt}\vec{V}_{n_p}^\text{Plane}`                                | - :math:`^\text{DiskAvg}V_x^\text{Wind}`                            |                                                                      |
    |                                         | - :math:`^\text{FiltDiskAvg}V_{x_{n_p}}^\text{Wind}`                            | - :math:`TI_\text{Amb}`                                             |                                                                      |
    |                                         | - :math:`^\text{Filt}TI_{\text{Amb}_{n_p}}`                                     |                                                                     |                                                                      |
@@ -309,7 +304,7 @@ sections below.
 
 
 After initialization and within each time step, the states of each
-module (*SC*, *OF*, and *WD*) are updated (from time :math:`t` to time
+module (*OF*, and *WD*) are updated (from time :math:`t` to time
 :math:`t+\Delta t`, or equivalently, :math:`n` to :math:`n+1`); time is
 incremented; and the module outputs are calculated and transferred as
 inputs to other modules. Because of the form simplifications, the state
@@ -318,7 +313,7 @@ transfer does not require a large nonlinear solve; and overall
 correction steps of the solution are not needed. The lack of a
 correction step is a major simplification of the coupling algorithm used
 within OpenFAST (:cite:`ff-Sprague14_1,ff-Sprague15_1`).
-Furthermore, the output calculations of the *SC*, *OF*, and *WD* modules
+Furthermore, the output calculations of the *OF*, and *WD* modules
 can be parallelized, followed then by the output calculation of the
 *AWAE* module. [2]_ In parallel mode, parallelization has been
 implemented in FAST.Farm through OpenMP.
@@ -332,53 +327,6 @@ only slightly more slowly than stand-alone OpenFAST simulations. This
 results in simulations that are computationally inexpensive enough to
 run the many simulations necessary for wind turbine/farm design and
 analysis.
-
-.. _FF:Theory:SC:
-
-Super Controller (SC Module)
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Wind-farm-wide super controllers have the potential to achieve the
-global benefit of improving overall power performance and reducing
-turbine loads, based on modifying wake deficits through variations in
-blade pitch or generator torque and/or redirecting (steering) wakes
-through variations in nacelle yaw or tilt, as illustrated in
-:numref:`FF:NacYaw`.
-
-.. figure:: Pictures/NacYawControl.png
-   :alt: Nacelle-yaw control used to redirect wakes away from downwind wind turbines. :cite:`ff-Gebraad16_1`
-   :name: FF:NacYaw
-   :width: 100%
-   :align: center
-
-   Nacelle-yaw control used to redirect wakes away from downwind wind
-   turbines. :cite:`ff-Gebraad16_1`
-
-The *SC* module of FAST.Farm provides an interface to the super
-controller dynamic library -- essentially identical to the super controller
-available in `SOWFA <https://github.com/NREL/SOWFA>`__ -- which allows the
-user of FAST.Farm to implement their own wind-farm-wide control logic in
-discrete time and without direct feedthrough of input to output -- perhaps
-developed through the application of
-`FLORIS <https://github.com/WISDEM/FLORISSE>`__. The inputs to the *SC*
-module are commands or measurements from individual turbine controllers
-(output from the *OF* module). [3]_ The outputs of the *SC* module are
-the global controller commands and individual turbine controller
-commands (inputs to the *OF* module).
-
-Note that at time zero, the *SC* module is called before the call to the
-*OF* module and the associated individual turbine controllers. So, the
-initial outputs from the super controller are sent as inputs to the
-individual turbine controllers, but the initial inputs to the super
-controller from the individual turbine controller outputs at time zero
-are always zero. At subsequent time steps, the *OF* module and the
-associated individual turbine controllers are called before the output
-calculation of the *SC* module. As a result, at each time step other
-than time zero, the outputs from the super controller are extrapolated
-in time based on past values within *OF* before being sent as input to
-the individual turbine controllers. Thus, care should be taken to ensure
-that the outputs from the super controller vary smoothly over time
-(without steps). See :numref:`FF:Parallel` for more information.
 
 .. _FF:OF:
 
@@ -440,13 +388,6 @@ level. The global inertial-frame coordinate system is defined with *Z*
 directed vertically upward (opposite gravity), *X* directed horizontally
 nominally downwind (along the zero-degree wind direction), and *Y*
 directed horizontally transversely.
-
-The global and turbine-dependent commands from the super controller
-(outputs from the *SC* module) are used as inputs to the *OF* module to
-enable the individual turbine controller to be guided by wind farm-level
-effects; likewise, the turbine-dependent commands or measurements are
-output from the *OF* module for access by the super controller (inputs
-to the *SC* module).
 
 The *OF* module also uses the disturbed wind (ambient plus wakes of
 neighboring turbines) across a high-resolution wind domain (in both time
@@ -514,7 +455,7 @@ where:
 
 -  :math:`\rho` -- air density
 
--  :math:`\vec{f}_{n_b}\left( r \right)` -- aerodynamic applied loads [4]_
+-  :math:`\vec{f}_{n_b}\left( r \right)` -- aerodynamic applied loads [3]_
    distributed per unit length along a line extending radially outward
    in the plane of the rotor disk for blade :math:`n_b`.
 
@@ -728,7 +669,7 @@ as the plane propagates downstream
 
 Equations :eq:`eq:disc`
 and :eq:`eq:propagation` apply directly to the *WD*
-module inputs :math:`D^\text{Rotor}`\  [5]_,
+module inputs :math:`D^\text{Rotor}`\  [4]_,
 :math:`\gamma^\text{YawErr}`, :math:`^\text{DiskAvg}V_x^\text{Rel}`, and
 :math:`TI_\text{Amb}`. The associated states are
 :math:`^\text{Filt}D_{n_p}^\text{Rotor}`,
@@ -821,7 +762,7 @@ nominally downwind. Equation :eq:`eq:6.7` expresses that each
 wake plane propagates downwind in the axisymmetric coordinate system by
 a distance equal to that traveled by the low-pass time-filtered
 wake-plane velocity projected along the plane orientation over the time
-step; [6]_ the initial wake plane (:math:`n_p=0`) is always at the rotor
+step; [5]_ the initial wake plane (:math:`n_p=0`) is always at the rotor
 disk. Equation :eq:`eq:6.8` expresses the global center
 positions of the wake plane following the passive tracer concept,
 similar to Equation :eq:`eq:6.7`, but considering the full
@@ -969,7 +910,7 @@ In Equation :eq:`eq:VWake_xAtRotor`:
 -  :math:`C_\text{NearWake}` -- user-specified calibration parameter
    greater than unity and less than :math:`2.5` which determines how far
    the wind speed drops and wake expands radially in the
-   pressure-gradient zone before recovering in the far wake. [7]_
+   pressure-gradient zone before recovering in the far wake. [6]_
 
 The right-hand side of Equation :eq:`eq:VWake_xAtRotor`
 represents the axial-induced velocity at the end of the
@@ -979,7 +920,7 @@ deficit is in the opposite direction of the free stream axial wind -- see
 expansion of the wake in the left-hand side of
 Equation :eq:`eq:VWake_xAtRotor` results from the
 application of the conservation of mass within an incremental annulus in
-the pressure-gradient zone. [8]_ The radial wake deficit is initialized
+the pressure-gradient zone. [7]_ The radial wake deficit is initialized
 to zero, as given in Equations :eq:`eq:VWake_rAtRotor`.
 Because the near-wake correction is applied directly at the rotor disk,
 the solution to the wake-deficit evolution for downwind distances within
@@ -1280,7 +1221,7 @@ involving :math:`V_r` and :math:`\frac{\partial V_r}{\partial r}` are
 calculated at :math:`n+1`, e.g.,
 :math:`V_r=\frac{1}{2}\left(V_{r_{n_p,n_r}}^\text{Wake}\left[ n+1 \right]+V_{r_{n_p,n_r-1}}^\text{Wake}\left[ n+1 \right]\right)`,
 where :math:`n_r` is the radii counter for :math:`N_r` radial nodes
-(:math:`0\le n_r\le N_r-1`). [9]_ Although the definition of each
+(:math:`0\le n_r\le N_r-1`). [8]_ Although the definition of each
 central difference is outside the scope of this document, the end result
 is that for each wake plane downstream of the rotor,
 :math:`V_{r_{n_p,n_r}}^\text{Wake}\left[ n+1 \right]` can be solved
@@ -1289,7 +1230,185 @@ explicitly sequentially from known solutions of
 the solution of the momentum equation),
 :math:`V_{x_{n_p-1}}^\text{Wake}\left( r \right)\left[ n \right]`, and
 :math:`V_{r_{n_p,n_r-1}}^\text{Wake}\left[ n+1 \right]` for
-:math:`1\le n_r\le N_r-1`. [10]_
+:math:`1\le n_r\le N_r-1`. [9]_
+
+
+
+.. _FF:WAT:
+
+Wake-Added Turbulence (WAT)
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+Wake-added turbulence is the additional small-scale turbulence generated
+from the turbulent mixing in the wake. 
+It is modeled by scaling up a background (undisturbed) turbulence.
+
+
+The theory for WAT will is presented in more detail in :cite:`ff-Branlard2024`.
+
+The basic principle for the wake-added turbulence is illustrated in :numref:`FF:WATSketch`. 
+
+.. figure:: Pictures/FFWakeAddedTurbBoxCoord.svg
+   :alt: Wake Added turbulence
+   :name: FF:WATSketch
+   :width: 100%
+   :align: center
+
+   Wake-added turbulence
+
+A scaling factor is computed at each wake plane, it is multiplied with a unit turbulence box
+and added to the quasi steady wake to form the final wake with wake-added turbulence. 
+In this implementation, the scaling factors are computed in the meandering
+frame, but assembled with the “global” unit turbulence box in the global
+frame. More details follow.
+
+
+**Scaling factor**
+
+The scaling factor, expressed in terms of the wake deficit :math:`V_x^{Wake}`, is determined at each wake plane as:
+
+.. math::
+   \begin{aligned}
+      k_{} (x,y,z) = 
+          \frac{k_\text{def}^\text{WAT}  }{ \overline{U}} \left| V_x^{Wake}(x,y,z) \right|
+        + \frac{k_\text{grad}^\text{WAT}D}{2\overline{U}} \left[\left|{\frac{\partial {V_x^{Wake}(x,y,z)}}{\partial r}}\right| +  \left|{\frac{1}{r}\frac{\partial {V_x^{Wake}(x,y,z)}}{\partial \theta}}\right|  \right]  
+   \end{aligned}
+
+where :math:`D` is a reference diameter, and :math:`\bar{U}` is the mean
+velocity taken as the filtered velocity at the turbine location normal to the
+rotor disk.  The coordinates :math:`x,y,z` and :math:`r,\theta` are taken in the
+meandering frame of reference.  The parameters :math:`k_\text{def}^\text{WAT}`
+and :math:`k_\text{grad}^\text{WAT}` are tuning paramters of the model
+respectively multiplying the quasi-steady wake deficit and the gradient of the
+wake deficit. These are based on an eddy-viscosity filter with five calibrated
+parameters to give a more realistic dependence on downstream position.  The
+general form for both is given in Equation :eq:`eq:kDefGrad`,
+
+.. math::
+   k_\text{def/grad}^\text{WAT} \left( \tilde{x}, k_\text{c}, f_\text{min}, D_\text{min}, D_\text{max}, e \right) = k_\text{c} \left( f_\text{min} + (1 - f_\text{min}) \left[ \frac{\tilde{x} - D_\text{min}}{D_\text{max} - D_\text{min}} \right]^e \right)
+   :label: eq:kDefGrad
+
+where :math:`\tilde{x} = x/D`, and :math:`k_\text{c}` is either
+:math:`k_\text{def}` or :math:`k_\text{grad}`.  This function is capped between
+:math:`k_\text{c} f_\text{min}` and :math:`k_\text{c}` when :math:`\tilde{x}` is
+not between :math:`D_\text{min}` and :math:`D_\text{max}`.  The tuning
+parameters are shown in :eq:`eq:kDefGradDefaults`.
+
+.. math::
+   \begin{matrix}
+                               & & k_\text{def/grad} & f_\text{min}   & D_\text{min} & D_\text{max}       & e       \\
+                               & & (\gt 0)           & (\ge 0, \le 1) & (\ge 0)      & (\gt k_\text{min}) & (\gt 0) \\\hline
+      k_\text{def}^\text{WAT}  & & 0.6               & 0              & 0            & 2                  & 1       \\
+      k_\text{grad}^\text{WAT} & & 3                 & 0              & 0            & 12                 & 0.65    \\
+   \end{matrix}
+   :label: eq:kDefGradDefaults
+
+These parameters were chosen as they fit relatively well for stable and neutral
+cases (prior studies have shown that FAST.Farm matches LES well for unstable
+cases with high ambient turbulence where a WAT model seems unnecessary), as seen
+in :numref:`FF:WAT:TuneParam`.
+
+.. figure:: Pictures/KFitDownstreamConcatNEW.png
+   :alt: Fitted tuning parameters
+   :name: FF:WAT:TuneParam
+   :width: 100%
+   :align: center
+
+   Fitted tuning parameters as a function of downstream distance for different stability cases. Values for different fitting options and smoothing are shown with lighter colors, and the averages are shown with darker colors. The model and recommended default values are given as the black dashed line.  Note that results for the unstable case beyond *8D* are uncertain due to the strong wake decay.
+
+We chose to enforce a zero value at :math:`\tilde{x}=0`, as this is the expected
+behavior for a case with no background turbulence intensity. The progressive
+ramp-up of the :math:`k` factors is characteristic of what would be expected as
+the vortices progressively break down downstream as seen in
+:numref:`FF:WAT:NoTI`.
+
+.. figure:: Pictures/FF-WakeNoTI.png
+   :alt: Single wind turbine with and without WAT
+   :name: FF:WAT:NoTI
+   :width: 100%
+   :align: center
+
+   Instantaneous velocity field in the wake of one wind turbine in uniform 8 m/s inflow without (left) and with (right) WAT implemented in FAST.Farm.
+
+
+**Unit turbulence boxes** 
+
+The 3 turbulence Mann boxes are stored as a 4D
+array :math:`\boldsymbol{u}_\text{unit}` of dimension
+:math:`(3,n_x, n_y, n_z)`.
+The turbulence boxes used for the WAT are isotropic turbulence boxes
+with unit standard deviation, generated using the Mann
+model :cite:`ff-Mann1994`.
+To generate a box with unit standard deviation, the dissipation rate is set to:
+
+.. math::
+
+      \alpha\epsilon^{2/3}\approx \frac{1}{0.688 L^{2/3}} 
+
+We have found that there is no dependency on the length scale. We nevertheless recommend to set it to the rotor diameter if the users generate their own boxes.
+
+
+**Predefined boxes**
+
+A recommended practice for the high-resolution domain of FAST.Farm is to chose a grid
+spacing equal to the maximum chord of the blade. 
+Based on the data from
+different wind turbine, the max-chord can be approximated as:
+:math:`c_\text{max}\approx 0.03D`. 
+Therefore we suggest to use this spacing in all three directions, and as a compromise to obtain a box
+with sufficient extent but moderate size, we select: :math:`\Delta x = \Delta y = \Delta z = 0.03D`,
+:math:`L_x = L_y=15D`, :math:`L_z= 2D`, :math:`n_x=n_y=512`,
+:math:`n_z=64`, leading to a box size of :math:`65` Mb per wind
+component.
+
+Users may generate their own Mann box using the guidelines presented in this paragraph and the one above. 
+
+
+
+**Convection of the WAT box**
+
+There is only one WAT turbulence box stored for the entire wind farm. To
+convect the WAT turbulence box, the AWAE module keeps track of a passive
+tracer that is convected at each time step with the mean of the
+rotor-average velocity of each wind turbine
+:math:`(\boldsymbol{U}_\text{farm}`). The position of the passive
+tracer, :math:`\boldsymbol{B}`, is defined as:
+
+.. math::
+
+      \frac{d\boldsymbol{B}}{dt} = \boldsymbol{U}_\text{farm}(t)
+
+where:
+
+.. math::
+
+      \boldsymbol{U}_\text{farm} = \operatorname{mean}\{ \overline{V}^\text{Low}_\text{Amb}[i_w], i_w =1\cdots n_{WT}\}
+
+where :math:`\overline{V}^\text{Low}_\text{Amb}[i_w]` is the rotor
+averaged ambient wind speed. 
+The equation is integrated using a first order forward Euler scheme as follows:
+
+.. math::
+
+       \boldsymbol{B}^{n+1} =  \boldsymbol{B}^{n}  + \Delta t_\text{low}\,  \boldsymbol{U}^{n}_\text{farm} 
+
+where the superscript :math:`n` denotes the time step, and where the
+tracer is assumed to be at the origin at :math:`t=0`:
+
+.. math::
+
+       \boldsymbol{B}^{0}=(0,0,0)
+
+The AWAE module needs the position of the tracer at intermediate,
+high-res, time steps. The position at high-res time step is computed as
+follows:
+
+.. math::
+
+       \boldsymbol{B}^{n,j} =  \boldsymbol{B}^{n}   - (n_h-j) \, \Delta t_\text{high}\,  \boldsymbol{U}^{n-1}_\text{farm}
+       ,\qquad j\in{0,.., n_h-1}
+
+
 
 .. _FF:AWAE:
 
@@ -1460,13 +1579,16 @@ spatial average is moderated by the low-pass time filter in the *WD*
 module. Using spatial averaging and the three vector components allows
 for atmospheric shear, wind veer, and other ambient wind characteristics
 to influence the eddy viscosity and wake-deficit evolution in the *WD*
-module. The incorporation of wake-added turbulence is left for future
-work. Note that Equation :eq:`eq:TI` uses the eight wind data
+module. 
+Wake-added turbulence is described in :numref:`FF:WAT`.
+Note that Equation :eq:`eq:TI` uses the eight wind data
 points from the low-resolution domain surrounding each point in the
 polar grid rather than interpolation. This is because calculating wind
 data in the polar grid on the wake plane via trilinear interpolation
 from the low-resolution domain would smooth out spatial variations and
 artificially reduce the calculated turbulence intensity.
+
+
 
 .. _FF:WMerging:
 
@@ -1483,7 +1605,7 @@ submodel of the *AWAE* module identifies zones of wake overlap between
 all wakes across the wind farm by finding wake volumes that overlap in
 space. Wake deficits are superimposed in the axial direction based on
 the RSS method (:cite:`ff-Katic86_1`); transverse components
-(radial wake deficits) are superimposed by vector sum. In Katic̀ et
+(radial wake deficits) are superimposed by vector sum. In Katic et
 al. (:cite:`ff-Katic86_1`), the RSS method is applied to wakes
 with axial deficits that are uniform across the wake diameter and radial
 deficits are not considered. In contrast, the RSS method in FAST.Farm is
@@ -1668,7 +1790,7 @@ al. (:cite:`ff-Larsen08_1`) proposed a uniform spatial average
 where all points within a circle of diameter
 :math:`2D_{n_p}^\text{Wake}` are given equal weight. However, the
 Fourier transform of the circular function in a polar spatial domain
-results in a *jinc* function in the polar wave-number domain, [11]_
+results in a *jinc* function in the polar wave-number domain, [10]_
 implying a gentle roll-off of energy below the cutoff wave number and
 pockets of energy at distinct wave numbers above the cutoff wave number.
 Experience with FAST.Farm development has shown that this approach
@@ -1740,41 +1862,35 @@ the meandering to known solutions. Note that the lower the value of
    FAST.Farm because profiling did not show adequate computational
    speedup. However, to minimize the computational expense of the output
    calculation of the *AWAE* module, the ambient wind data files are
-   read in parallel to the state updates of the *SC*, *OF*, and *WD*
+   read in parallel to the state updates of the *OF*, and *WD*
    modules. See the introduction to :numref:`FF:TheoryBasis` for
    more information.
 
 .. [3]
-   The *SC* module also has as input a placeholder for future global
-   (e.g., wind) measurements (output from the *AWAE* module) in addition
-   to commands or measurements from the individual turbine controllers.
-   But the global inputs are currently null.
-
-.. [4]
    Derived using the Line2-to-Line2 mesh-mapping algorithm of
    FAST (:cite:`ff-Sprague14_1,ff-Sprague15_1`) to transfer the
    aerodynamic applied loads distributed per unit length along the
    deflected/curved blade as calculated within FAST.
 
-.. [5]
+.. [4]
    Variations in the rotor diameter, :math:`D^\text{Rotor}`, are
    possible as a result of blade deflection. These variations are likely
    small, but this variable is treated the same as other inputs for
    consistency.
 
-.. [6]
+.. [5]
    The absolute value is added because, as far as wake evolution is
    concerned, if a wake plane travels opposite of its original
    propagation direction (e.g., due to a localized wind gust), the total
    downwind distance traveled is used rather than the instantaneous
    downwind distance from the rotor.
 
-.. [7]
+.. [6]
    A value of :math:`C_\text{NearWake}=2` is expected from first
    principles, but can be calibrated by the user of FAST.Farm to better
    match the far wake to known solutions.
 
-.. [8]
+.. [7]
    The incremental mass flow is given by:
 
    .. math:: d\dot{m} = 2\pi r dr \rho\ ^\text{FiltDiskAvg}V^\text{Rel}_x (1-a(r)) = 2\pi r^\text{Plane} dr^\text{Plane} \rho\ ^\text{FiltDiskAvg}V^\text{Rel}_x (1-C_\text{NearWake} a(r))
@@ -1783,16 +1899,16 @@ the meandering to known solutions. Note that the lower the value of
    :math:`r^\text{Plane} dr^\text{Plane} = \frac{1-a\left( r\right)}{1-C_\text{NearWake} a\left( r\right)}r dr`,
    which can then be integrated along the radius.
 
-.. [9]
+.. [8]
    Subscript :math:`n_r` has been used here in place of
    :math:`\left( r\right)`
 
-.. [10]
+.. [9]
    Note that the radial wake-velocity deficit at the centerline of the
    axisymmetric coordinate system (:math:`n_r=0`) is always zero
    (:math:`V_{r_{n_p}}^\text{Wake}\left( r \right)|_{r=0}=0)`.
 
-.. [11]
+.. [10]
    In this context, the *jinc* function is defined as
    :math:`jinc(r)=\frac{J_1(2\pi r)}{r}` (with the limiting value at the
    origin of :math:`jinc(0) = \pi)`, where :math:`J_1(r)` is the Bessel

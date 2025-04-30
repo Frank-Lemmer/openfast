@@ -109,9 +109,9 @@ endmacro(check_f2008_features)
 #
 macro(set_fast_gfortran)
   if(NOT WIN32)
-    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fpic ")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fpic")
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fpic")
+    set(CMAKE_Fortran_FLAGS "${CMAKE_Fortran_FLAGS} -fPIC ")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
   endif(NOT WIN32)
 
   # Fix free-form compilation for OpenFAST
@@ -162,7 +162,14 @@ macro(set_fast_intel_fortran_posix)
 
   # debug flags
   if(CMAKE_BUILD_TYPE MATCHES Debug)
-    set( CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -check all,noarg_temp_created -traceback -init=huge,infinity" )
+    if(${CMAKE_Fortran_COMPILER_ID} MATCHES "IntelLLVM")
+      # NOTE: there is a bug in the 2024 and 2025 IFX compiler causing conflicts between the `check:uninit` and `-lm -ldl` flags
+      #     When this is fixed in IFX, we will want to update this to check against versions before fix
+      #     See here: https://community.intel.com/t5/Intel-Fortran-Compiler/ifx-IFX-2023-2-0-20230721-linker-problems-with-check-uninit/m-p/1527816
+      set( CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -check all,noarg_temp_created,nouninit -traceback -init=huge,infinity" )
+    else()
+      set( CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} -check all,noarg_temp_created -traceback -init=huge,infinity" )
+    endif()
   endif()
 
   # If double precision, make real and double constants 64 bits
@@ -218,7 +225,11 @@ macro(set_fast_intel_fortran_windows)
 
   # debug flags
   if(CMAKE_BUILD_TYPE MATCHES Debug)
-    set( CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} /check:all,noarg_temp_created /traceback /Qinit=huge,infinity" )
+    if(${CMAKE_Fortran_COMPILER_ID} MATCHES "IntelLLVM")
+      set( CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} /check:all,noarg_temp_created,nouninit /traceback /Qinit=huge,infinity" )
+    else()
+      set( CMAKE_Fortran_FLAGS_DEBUG "${CMAKE_Fortran_FLAGS_DEBUG} /check:all,noarg_temp_created /traceback /Qinit=huge,infinity" )
+    endif()
   endif()
 
   check_f2008_features()
