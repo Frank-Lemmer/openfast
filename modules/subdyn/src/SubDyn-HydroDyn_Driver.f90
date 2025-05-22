@@ -19,8 +19,7 @@
 ! limitations under the License.
 !
 !**********************************************************************************************************************************
-!This is a SubDyn-HydroDyn coupling in order to use HydroDyn-Morison coefficients in SubDyn (sowento, 2024)
-PROGRAM SubDyn_HydroDyn_Driver
+PROGRAM SubDyn_Driver
 
    USE NWTC_Library
    USE SubDyn
@@ -90,7 +89,7 @@ PROGRAM SubDyn_HydroDyn_Driver
    TYPE(SD_OutputType)             :: y                    ! System outputs
    TYPE(ALoadType), pointer        :: AL                   ! Applied Load (alias to shorten notations)
    
-   !-------------HydroDyn variables--------------------!
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
    TYPE(HydroDyn_InitInputType)                        :: InitInDataHD           ! Input data for initialization
    TYPE(HydroDyn_InitOutputType)                       :: InitOutDataHD          ! Output data from initialization
    
@@ -109,7 +108,7 @@ PROGRAM SubDyn_HydroDyn_Driver
    !TYPE(HydroDyn_InputType)                           :: u                    ! System inputs [OLD STYLE]
    TYPE(HydroDyn_InputType)                            :: uHD(NumInp)            ! System inputs
    TYPE(HydroDyn_OutputType)                           :: yHD                    ! System outputs
-   !-------------HydroDyn variables--------------------!
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
 
 
    INTEGER(IntKi)                  :: n                    ! Loop counter (for time step)
@@ -139,7 +138,7 @@ PROGRAM SubDyn_HydroDyn_Driver
    REAL(ReKi)                      :: UsrTime1             ! User CPU time for simulation initialization
    INTEGER                         :: StrtTime (8)         ! Start time of simulation
    CHARACTER(200)                  :: git_commit           ! String containing the current git commit hash
-   TYPE(ProgDesc), PARAMETER       :: version   = ProgDesc( 'SubDyn-HydroDyn Driver', '', '' )  ! The version number of this program.
+   TYPE(ProgDesc), PARAMETER       :: version   = ProgDesc( 'SubDyn Driver', '', '' )  ! The version number of this program.
    !...............................................................................................................................
    ! Routines called in initialization
    !...............................................................................................................................
@@ -162,7 +161,7 @@ PROGRAM SubDyn_HydroDyn_Driver
    ! Obtain OpenFAST git commit hash
    git_commit = QueryGitVersion()
    ! Tell our users what they're running
-   CALL WrScr( ' Running '//TRIM( version%Name )//' by sowento 2024 - '//' Coupling of HD and SD: HD-added mass (member-radial and joint-axial) will be added as inertial mass to SubDyn- '//' a part of OpenFAST - '//TRIM(git_Commit)//NewLine//' linked with '//TRIM( NWTC_Ver%Name )//NewLine )
+   CALL WrScr( ' Running '//TRIM( version%Name )//' a part of OpenFAST - '//TRIM(git_Commit)//NewLine//' linked with '//TRIM( NWTC_Ver%Name )//NewLine )
    
    ! Set the abort error level to a fatal error
    AbortErrLev = ErrID_Fatal
@@ -216,9 +215,8 @@ PROGRAM SubDyn_HydroDyn_Driver
    end if
    !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
    
-   
    ! Initialize SubDyn module
-   CALL SD_Init( InitInData, u(1), p,  x, xd, z, OtherState, y, m, TimeInterval, InitOutData, drvrInitInp%HDFlag, InputFileDataHD%Morison, ErrStat2, ErrMsg2 ); call AbortIfFailed()
+   CALL SD_Init( InitInData, u(1), p,  x, xd, z, OtherState, y, m, TimeInterval, InitOutData, ErrStat2, ErrMsg2 ); call AbortIfFailed()
 
    ! Sanity check for outputs
    if (p%NumOuts==0) then
@@ -274,7 +272,6 @@ PROGRAM SubDyn_HydroDyn_Driver
    ! Destroy initialization data
    CALL SD_DestroyInitInput(  InitInData,  ErrStat2, ErrMsg2 ); call AbortIfFailed()
    CALL SD_DestroyInitOutput( InitOutData, ErrStat2, ErrMsg2 ); call AbortIfFailed()
-   
 
    !...............................................................................................................................
    ! Routines called in loose coupling -- the glue code may implement this in various ways
@@ -394,10 +391,9 @@ CONTAINS
       CHARACTER(1024)                                  :: FileName             ! Name of SubDyn input file  
       CHARACTER(1024)                                  :: PriPath             ! Path Name of SubDyn input file  
       
-      
-       !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+      !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
       INTEGER                                         :: HDFlagInt
-       !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+      !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
    
       UnEcho=-1
       UnIn  =-1
@@ -457,7 +453,6 @@ CONTAINS
          END IF
       END IF
       !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
-      
       
       !---------------------- INPUTS -------------------------------------------------------------------
       CALL ReadCom( UnIn, FileName, 'INPUTS header', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
@@ -579,20 +574,6 @@ CONTAINS
    ! --------------------------------------------------------------------------------
    ! --- Generic routines (also present in other modules, e.g. OLAF, AD Driver) 
    ! --------------------------------------------------------------------------------
-   function is_numeric(string, x)
-      implicit none
-      character(len=*), intent(in) :: string
-      real(reki), intent(out) :: x
-      logical :: is_numeric
-      integer :: e,n
-      character(len=12) :: fmt
-      x = 0.0_reki
-      n=len_trim(string)
-      write(fmt,'("(F",I0,".0)")') n
-      read(string,fmt,iostat=e) x
-      is_numeric = e == 0
-   end function is_numeric
-
    function is_int(string, x)
       implicit none
       character(len=*), intent(in) :: string
@@ -606,111 +587,5 @@ CONTAINS
       read(string,fmt,iostat=e) x
       is_int = e == 0
    end function is_int
-
-   !> Read a delimited file with one line of header
-   subroutine ReadDelimFile(Filename, nCol, Array, errStat, errMsg, nHeaderLines, priPath)
-      character(len=*),                        intent(in)  :: Filename
-      integer,                                 intent(in)  :: nCol
-      real(ReKi), dimension(:,:), allocatable, intent(out) :: Array
-      integer(IntKi)         ,                 intent(out) :: errStat ! Status of error message
-      character(*)           ,                 intent(out) :: errMsg  ! Error message if ErrStat /= ErrID_None
-      integer(IntKi), optional,                intent(in ) :: nHeaderLines
-      character(*)  , optional,                intent(in ) :: priPath  ! Primary path, to use if filename is not absolute
-      integer              :: UnIn, i, j, nLine, nHead
-      character(len= 2048) :: line
-      integer(IntKi)       :: errStat2      ! local status of error message
-      character(ErrMsgLen) :: errMsg2       ! temporary Error message
-      character(len=2048) :: Filename_Loc   ! filename local to this function
-      ErrStat = ErrID_None
-      ErrMsg  = ""
-
-      Filename_Loc = Filename
-      if (present(priPath)) then
-         if (PathIsRelative(Filename_Loc)) Filename_Loc = trim(PriPath)//trim(Filename)
-      endif
-
-
-      ! Open file
-      call GetNewUnit(UnIn) 
-      call OpenFInpFile(UnIn, Filename_Loc, errStat2, errMsg2); call SetErrStat(errStat2, errMsg2, errStat, errMsg, 'ReadDelimFile')
-      if (errStat >= AbortErrLev) return
-      ! Count number of lines
-      nLine = line_count(UnIn)
-      allocate(Array(nLine-1, nCol), stat=errStat2); errMsg2='allocation failed'; call SetErrStat(errStat2, errMsg2, errStat, errMsg, 'ReadDelimFile')
-      if (errStat >= AbortErrLev) return
-      ! Read header
-      nHead=1
-      if (present(nHeaderLines)) nHead = nHeaderLines
-      do i=1,nHead
-         read(UnIn, *, IOSTAT=errStat2) line
-         errMsg2 = ' Error reading line '//trim(Num2LStr(1))//' of file: '//trim(Filename_Loc)
-         call SetErrStat(errStat2, errMsg2, errStat, errMsg, 'ReadDelimFile')
-         if (errStat >= AbortErrLev) return
-      enddo
-      ! Read data
-      do I = 1,nLine-1
-         read (UnIn,*,IOSTAT=errStat2) (Array(I,J), J=1,nCol)
-         errMsg2 = ' Error reading line '//trim(Num2LStr(I+1))//' of file: '//trim(Filename_Loc)
-         call SetErrStat(errStat2, errMsg2, errStat, errMsg, 'ReadDelimFile')
-         if (errStat >= AbortErrLev) return
-      end do  
-      close(UnIn) 
-   end subroutine ReadDelimFile
-
-   !> Counts number of lines in a file
-   integer function line_count(iunit)
-      integer, intent(in) :: iunit
-      character(len=2048) :: line
-      ! safety for infinite loop..
-      integer :: i
-      integer, parameter :: nline_max=100000000 ! 100 M
-      line_count=0
-      do i=1,nline_max 
-         line=''
-         read(iunit,'(A)',END=100)line
-         line_count=line_count+1
-      enddo
-      if (line_count==nline_max) then
-         print*,'Error: maximum number of line exceeded for line_count'
-         STOP
-      endif
-   100 if(len(trim(line))>0) then
-         line_count=line_count+1
-      endif
-      rewind(iunit)
-      return
-    end function
-   !> Perform linear interpolation of an array, where first column is assumed to be ascending time values
-   !! First value is used for times before, and last value is used for time beyond
-   subroutine interpTimeValue(array, time, iLast, values)
-      real(ReKi), dimension(:,:), intent(in)    :: array !< vector of time steps
-      real(DbKi),                 intent(in)    :: time  !< time
-      integer,                    intent(inout) :: iLast
-      real(ReKi), dimension(:),   intent(out)   :: values !< vector of values at given time
-      integer :: i
-      real(ReKi) :: alpha
-      if (array(iLast,1)> time) then 
-         values = array(iLast,2:)
-      elseif (iLast == size(array,1)) then 
-         values = array(iLast,2:)
-      else
-         ! Look for index
-         do i=iLast,size(array,1)
-            if (array(i,1)<=time) then
-               iLast=i
-            else
-               exit
-            endif
-         enddo
-         if (iLast==size(array,1)) then
-            values = array(iLast,2:)
-         else
-            ! Linear interpolation
-            alpha = (array(iLast+1,1)-time)/(array(iLast+1,1)-array(iLast,1))
-            values = array(iLast,2:)*alpha + array(iLast+1,2:)*(1-alpha)
-            !print*,'time', array(iLast,1), '<=', time,'<',  array(iLast+1,1), 'fact', alpha
-         endif
-      endif
-   end subroutine interpTimeValue
 !----------------------------------------------------------------------------------------------------------------------------------
 END PROGRAM 
