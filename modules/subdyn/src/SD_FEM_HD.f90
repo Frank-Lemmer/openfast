@@ -1625,8 +1625,8 @@ SUBROUTINE GetHDAddedMassForSDElements(Init, p, HDInputDataMor, ErrStat, ErrMsg)
       FOUND_SD = .false.
       FOUND_SDAX = .false.
         
-      CA(1) = HDInputDataMor%COEFMEMBERS(ihd)%MEMBERCA1
-      CA(2) = HDInputDataMor%COEFMEMBERS(ihd)%MEMBERCA2
+      CA(1) = HDInputDataMor%COEFMEMBERSCYL(ihd)%MEMBERCA1
+      CA(2) = HDInputDataMor%COEFMEMBERSCYL(ihd)%MEMBERCA2
       
       JIndxHd(1)  = HDINPUTDATAMOR%INPMEMBERS(ihd)%MJOINTID1
       JIndxHd(2)  = HDINPUTDATAMOR%INPMEMBERS(ihd)%MJOINTID2

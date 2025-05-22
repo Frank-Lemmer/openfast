@@ -22,7 +22,7 @@
 PROGRAM SubDyn_Driver
 
    USE NWTC_Library
-   USE SubDyn
+   USE SubDyn_HD
    USE SubDyn_Types
    USE SubDyn_Output
    USE FEM, only: FINDLOCI

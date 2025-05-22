@@ -25,7 +25,7 @@ MODULE HydroDynDriverSubs
    USE NWTC_Library
    use SeaState
    use SeaState_Types
-   USE HydroDyn
+   USE HydroDyn_SD
    USE HydroDyn_Types
    USE HydroDyn_Output
    USE ModMesh_Types

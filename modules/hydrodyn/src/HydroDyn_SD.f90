@@ -81,7 +81,11 @@ MODULE HydroDyn
 !> This routine is called at the start of the simulation to perform initialization steps. 
 !! The parameters are set here and not changed during the simulation.
 !! The initial states and initial guess for the input are defined.
-SUBROUTINE HydroDyn_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitOut, ErrStat, ErrMsg )
+   
+ !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+   !Add InputFileData arg
+ !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+SUBROUTINE HydroDyn_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitOut, InputFileData, ErrStat, ErrMsg )
 !..................................................................................................................................
 
       TYPE(HydroDyn_InitInputType),       INTENT(INOUT)  :: InitInp     !< Input data for initialization routine. [INOUT because of a move_alloc() statement]

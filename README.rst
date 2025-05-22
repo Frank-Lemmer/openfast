@@ -15,7 +15,7 @@ It turned out that rigid links make it impossible to use NDIV>1 in SubDyn.
 
 When merging with a new version of OpenFAST:
 - Consider overwriting the files with _HD or _SD ending in SubDyn and HydroDyn, respectively and copy all code sections with "Specific to this..." over to the new files
-- Check the following files
+- Check the following files:
  - SubDyn_HD.f90
  - SD_FEM_HD
  - HydroDyn_SD.f90
