@@ -15,7 +15,7 @@ It turned out that rigid links make it impossible to use NDIV>1 in SubDyn.
 
 In 2025-05, the SubDyn-hydrodyn interfaces were changed in SD and HD directly, which means openfast does no longer compile (previously the files to be changed were copied with new endings). Only the Subdyn-Hydrodyn project will compile.
 
-
+ATTENTION: Rectangular members are NOT YET supported!
 
 |actions| |nbsp| |rtfd|
 
