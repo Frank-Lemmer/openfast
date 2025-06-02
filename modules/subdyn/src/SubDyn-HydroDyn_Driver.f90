@@ -19,20 +19,25 @@
 ! limitations under the License.
 !
 !**********************************************************************************************************************************
-PROGRAM SubDyn_Driver
+   
+!-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+   !This file is based on SubDyn_Driver.f90 with modifications for coupling with HD
+!-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+   
+PROGRAM SubDyn_HydroDyn_Driver
 
    USE NWTC_Library
-   USE SubDyn_HD
+   USE SubDyn
    USE SubDyn_Types
    USE SubDyn_Output
    USE FEM, only: FINDLOCI
    USE VersionInfo
    
-   !-------------HydroDyn modules--------------------!
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
    USE HydroDyn
    USE HydroDyn_Types
    USE HydroDyn_Output
-   !-------------HydroDyn modules--------------------!
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
 
    IMPLICIT NONE
 
@@ -160,8 +165,12 @@ PROGRAM SubDyn_Driver
    CALL DispCopyrightLicense( version%Name )
    ! Obtain OpenFAST git commit hash
    git_commit = QueryGitVersion()
+   
    ! Tell our users what they're running
-   CALL WrScr( ' Running '//TRIM( version%Name )//' a part of OpenFAST - '//TRIM(git_Commit)//NewLine//' linked with '//TRIM( NWTC_Ver%Name )//NewLine )
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+   !CALL WrScr( ' Running '//TRIM( version%Name )//' a part of OpenFAST - '//TRIM(git_Commit)//NewLine//' linked with '//TRIM( NWTC_Ver%Name )//NewLine )
+   CALL WrScr( ' Running '//TRIM( version%Name )//' by sowento 2024 - '//' Coupling of HD and SD: HD-added mass (member-radial and joint-axial) will be added as inertial mass to SubDyn- '//' a part of OpenFAST - '//TRIM(git_Commit)//NewLine//' linked with '//TRIM( NWTC_Ver%Name )//NewLine )
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
    
    ! Set the abort error level to a fatal error
    AbortErrLev = ErrID_Fatal
@@ -195,9 +204,9 @@ PROGRAM SubDyn_Driver
    if (drvrInitInp%HDFlag ) then
       !HARDCODE input file values:
       InitInDataHD%Gravity      = drvrInitInp%Gravity ! From SD
-      InitInDataHD%defWtrDens   = 1025.0
-      InitInDataHD%defWtrDpth   = drvrInitInp%WtrDpth ! From SD
-      InitInDataHD%defMSL2SWL   = 0.0
+      !InitInDataHD%defWtrDens   = 1025.0 //Disappeared from this type 2025
+      !InitInDataHD%defWtrDpth   = drvrInitInp%WtrDpth ! From SD
+      !InitInDataHD%defMSL2SWL   = 0.0
       InitInDataHD%UseInputFile = .TRUE. 
       !InitInDataHD%InputFile    = '..\..\reg_tests\r-test\modules\hydrodyn\hd_5MW_OC4Jckt_DLL_WTurb_WavesIrr_MGrowth\NRELOffshrBsline5MW_OC4Jacket_HydroDyn.dat'
       InitInDataHD%InputFile    = drvrInitInp%HDInputFile !'..\..\Taisei_Morison_HydroDyn_3.5.1.dat'
@@ -213,11 +222,13 @@ PROGRAM SubDyn_Driver
          call AbortIfFailed()
       end if
    end if
-   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+   
    
    ! Initialize SubDyn module
-   CALL SD_Init( InitInData, u(1), p,  x, xd, z, OtherState, y, m, TimeInterval, InitOutData, ErrStat2, ErrMsg2 ); call AbortIfFailed()
-
+   !CALL SD_Init( InitInData, u(1), p,  x, xd, z, OtherState, y, m, TimeInterval, InitOutData, ErrStat2, ErrMsg2 ); call AbortIfFailed()
+   CALL SD_Init( InitInData, u(1), p,  x, xd, z, OtherState, y, m, TimeInterval, InitOutData, drvrInitInp%HDFlag, InputFileDataHD%Morison, ErrStat2, ErrMsg2 ); call AbortIfFailed()
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+   
    ! Sanity check for outputs
    if (p%NumOuts==0) then
       call WrScr('Warning: No output channels were selected in SubDyn. No output file will be created!')

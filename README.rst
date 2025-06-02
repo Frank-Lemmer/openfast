@@ -13,14 +13,7 @@ Hydrodyn and SubDyn need to have joints defined at the water surface.
 
 It turned out that rigid links make it impossible to use NDIV>1 in SubDyn.
 
-When merging with a new version of OpenFAST:
-- Consider overwriting the files with _HD or _SD ending in SubDyn and HydroDyn, respectively and copy all code sections with "Specific to this..." over to the new files
-- Check the following files:
- - SubDyn_HD.f90
- - SD_FEM_HD
- - HydroDyn_SD.f90
- - SubDyn-HydroDyn_Driver.f90
- - SubDyn_Registry.txt
+In 2025-05, the SubDyn-hydrodyn interfaces were changed in SD and HD directly, which means openfast does no longer compile (previously the files to be changed were copied with new endings). Only the Subdyn-Hydrodyn project will compile.
 
 
 

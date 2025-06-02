@@ -20,7 +20,7 @@
 MODULE SubDyn_Output
    USE NWTC_Library
    USE SubDyn_Types
-   USE SD_FEM_HD
+   USE SD_FEM
    USE SubDyn_Output_Params, only: MNfmKe, MNfmMe, MNTDss, MNRDe, MNTRAe, IntfSS, IntfTRss, IntfTRAss, ReactSS, OutStrLenM1
    USE SubDyn_Output_Params, only: ParamIndxAry, ParamUnitsAry, ValidParamAry, SSqm01, SSqmd01, SSqmdd01
 

@@ -20,6 +20,11 @@ MODULE SD_FEM
   USE NWTC_Library
   USE SubDyn_Types
   USE FEM
+  
+  !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+  USE HydroDyn_Types
+  !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+  
   IMPLICIT NONE
 
  
@@ -1374,14 +1379,27 @@ END SUBROUTINE CheckIntf
 
 !------------------------------------------------------------------------------------------------------
 !> Assemble stiffness and mass matrix, and gravity force vector
-SUBROUTINE AssembleKM(Init, p, ErrStat, ErrMsg)
+SUBROUTINE AssembleKM(Init, p, HDFlag, HDInputDataMor, ErrStat, ErrMsg)
    TYPE(SD_InitType),            INTENT(INOUT) :: Init
    TYPE(SD_ParameterType),       INTENT(INOUT) :: p
+   
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+   LOGICAL, INTENT(IN   )  :: HDFlag    !Hydrodyn Flag      
+   TYPE(Morison_InitInputType), INTENT(IN   )  :: HDInputDataMor    !Hydrodyn Parameters      
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+
+
    INTEGER(IntKi),               INTENT(  OUT) :: ErrStat     ! Error status of the operation
    CHARACTER(*),                 INTENT(  OUT) :: ErrMsg      ! Error message if ErrStat /= ErrID_None
    ! Local variables
    INTEGER                  :: I, J, K
    INTEGER                  :: iGlob
+   
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+   REAL(FEKi)               :: Mg(12, 12)
+   REAL(FEKi)               :: WaterDensity, HDRad
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+   
    REAL(FEKi)               :: Ke(12,12), Me(12, 12), FGe(12) ! element stiffness and mass matrices gravity force vector
    REAL(FEKi)               :: FCe(12) ! Pretension force from cable element
    INTEGER(IntKi)           :: ErrStat2
@@ -1408,6 +1426,19 @@ SUBROUTINE AssembleKM(Init, p, ErrStat, ErrMsg)
    Init%M  = 0.0_FEKi
    p%FG    = 0.0_FEKi
    p%FC    = 0.0_FEKi
+   
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+   ALLOCATE( p%NodeAddedMass(p%NNodes), STAT=ErrStat2); ErrMsg2='Error allocating p%NodeAddedMass'
+   if(Failed()) return
+   
+   CALL AllocAry( Init%MG, p%nDOF, p%nDOF , 'Init%MG',  ErrStat2, ErrMsg2); if(Failed()) return; ! system mass matrix 
+   Init%MG  = 0.0_FEKi
+
+   if (HDFlag ) then
+      CALL GetHDAddedMassForSDElements(Init, p, HDInputDataMor, ErrStat, ErrMsg)
+      WaterDensity = 1025.
+   end if
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
 
    ! loop over all elements, compute element matrices and assemble into global matrices
    DO i = 1, Init%NElem
@@ -1415,6 +1446,17 @@ SUBROUTINE AssembleKM(Init, p, ErrStat, ErrMsg)
       CALL ElemM(p%ElemProps(i), Me)
       CALL ElemK(p%ElemProps(i), Ke)
       CALL ElemF(p%ElemProps(i), Init%g, FGe, FCe)
+      
+      !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+      !Added mass:
+      if (HDFlag ) then
+         if (p%ElemProps(i)%eType==idMemberRigid .AND. p%ElemProps(i)%AddedMass%HDCA > 0.1) then
+            ErrMsg2='Added mass associated with rigid element, this is not implemented yet. Problematic element: '//trim(Num2LStr(i)); ErrStat2=ErrID_Fatal;
+            if(Failed()) return
+         endif
+         CALL ElemA(p%ElemProps(i)%Length, p%ElemProps(i)%Ixx, p%ElemProps(i)%Iyy, p%ElemProps(i)%AddedMass%HDCa, p%ElemProps(i)%AddedMass%HDArea, WaterDensity, p%ElemProps(i)%DirCos, Mg)
+      end if
+      !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
 
       ! --- Assembly in global unconstrained system
       IDOF = p%ElemsDOF(1:12, i)
@@ -1422,7 +1464,42 @@ SUBROUTINE AssembleKM(Init, p, ErrStat, ErrMsg)
       p%FG     ( IDOF )  = p%FG( IDOF ) + FGe(1:12)             ! Note: Gravity forces only
       Init%K(IDOF, IDOF) = Init%K( IDOF, IDOF) + Ke(1:12,1:12)
       Init%M(IDOF, IDOF) = Init%M( IDOF, IDOF) + Me(1:12,1:12)
+      
+      !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+      !Init%M(IDOF, IDOF) = Init%M( IDOF, IDOF) + Me(1:12,1:12)
+      Init%M(IDOF, IDOF) = Init%M( IDOF, IDOF) + Me(1:12,1:12) + Mg(1:12,1:12)
+      Init%MG(IDOF, IDOF) = Init%MG( IDOF, IDOF) + Me(1:12,1:12)
+      !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+      
    ENDDO
+   
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+   ! Add axial added mass to mass matrix
+   IF (HDFlag ) then
+      DO iNode = 1, p%NNodes
+
+         if (p%NodeAddedMass(iNode)%HDCa > 0.0) then
+            if (Init%Nodes(iNode,iJointType) /= idJointCantilever) then
+               ErrMsg2='Axial added mass can only be added as concentrated mass for cantilever joints. Problematic node: '//trim(Num2LStr(iNode)); ErrStat2=ErrID_Fatal;
+               if(Failed()) return
+            endif
+            ! Mass matrix of a rigid body
+            M66 = 0.0_ReKi
+            HDRad = SQRT(p%NodeAddedMass(iNode)%HDArea/Pi)
+            M66(3,3) =  p%NodeAddedMass(iNode)%HDCa*WaterDensity*2.0/3.0*Pi*HDRad**3 !Only vertical!!
+         
+            ! Adding
+            DO J = 1, 6
+               jGlob = p%NodesDOF(iNode)%List(J)
+               DO K = 1, 6
+                  kGlob = p%NodesDOF(iNode)%List(K)
+                  Init%M(jGlob, kGlob) = Init%M(jGlob, kGlob) + M66(J,K)
+               ENDDO
+            ENDDO
+         ENDIF !CA>0
+      ENDDO ! Loop on concentrated axial added mass
+   ENDIF
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
       
    ! Add concentrated mass to mass matrix
    CALL AllocAry( p%CMassNode,   Init%nCMass,    'p%CMassNode',   ErrStat2, ErrMsg2); if(Failed()) return;
@@ -1499,6 +1576,188 @@ CONTAINS
    END FUNCTION
    
 END SUBROUTINE AssembleKM
+
+
+ !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+SUBROUTINE GetHDAddedMassForSDElements(Init, p, HDInputDataMor, ErrStat, ErrMsg)
+   TYPE(SD_InitType),                        INTENT(IN)              :: Init
+   TYPE(SD_ParameterType),                   INTENT(INOUT)           :: p
+   TYPE(Morison_InitInputType),              INTENT(IN   )           :: HDInputDataMor    !Hydrodyn Parameters      
+   !
+   INTEGER(IntKi),               INTENT(  OUT) :: ErrStat     ! Error status of the operation
+   CHARACTER(*),                 INTENT(  OUT) :: ErrMsg      ! Error message if ErrStat /= ErrID_None
+   ! Local variables
+   REAL(FEKi)               :: EPS
+   REAL(FEKi)               :: CA(2),D(2), CAX
+   REAL(FEKi)               :: MPROPSETID1, MPROPSETID2
+   INTEGER(INTKi)           :: i, ihd, ijoint
+   INTEGER(INTKi)           :: JIndxHd(2), DIndx(2), CAXIdx
+   INTEGER(INTKi)           :: NIndx1, NIndx2
+
+   REAL(FEKi), dimension(3,2) :: JPosHd
+   REAL(FEKi), dimension(3) :: NPos1, NPos2, NPos, MemberStartToEnd
+   LOGICAL :: FOUND_SD, FOUND_SDAX
+   
+   EPS = 1.0e-6
+   
+   !Initialize element and nodal (axial) added mass to zero:
+   DO i = 1, size(p%ElemProps)
+      p%ElemProps(i)%AddedMass%HDCa = 0.0
+      p%ElemProps(i)%AddedMass%HDArea = 0.0
+   ENDDO
+   
+   DO i = 1, p%NNODES
+      p%NodeAddedMass(i)%HDCa = 0.0
+      p%NodeAddedMass(i)%HDArea = 0.0
+   ENDDO
+   
+   
+   !Loop over HD input members, get positions and coefficients -> map onto SD-Init%Nodes
+   !This works only for member-based coefficients (option 3)
+   DO ihd = 1, HDInputDataMor%NMEMBERS
+      IF (HDINPUTDATAMOR%INPMEMBERS(ihd)%MCOEFMOD /= 3) then
+         ErrMsg='Hydrodyn coefficients can only be read of coefficient mode 3, Member #: '//trim(Num2LStr(ihd)); ErrStat=ErrID_Fatal;
+         call WrScr(ErrMsg)
+         return
+      ENDIF
+      
+     
+      FOUND_SD = .false.
+      FOUND_SDAX = .false.
+        
+      CA(1) = HDInputDataMor%COEFMEMBERSCYL(ihd)%MEMBERCA1
+      CA(2) = HDInputDataMor%COEFMEMBERSCYL(ihd)%MEMBERCA2
+      
+      JIndxHd(1)  = HDINPUTDATAMOR%INPMEMBERS(ihd)%MJOINTID1
+      JIndxHd(2)  = HDINPUTDATAMOR%INPMEMBERS(ihd)%MJOINTID2
+        
+      JPosHd(:,1) = HDINPUTDATAMOR%INPJOINTS(JIndxHd(1))%POSITION
+      JPosHd(:,2) = HDINPUTDATAMOR%INPJOINTS(JIndxHd(2))%POSITION
+      
+      MemberStartToEnd = JPosHd(:,2) - JPosHd(:,1)
+      
+      DIndx(1) = HDINPUTDATAMOR%INPMEMBERS(ihd)%MPROPSETID1
+      DIndx(2) = HDINPUTDATAMOR%INPMEMBERS(ihd)%MPROPSETID2
+      
+      D(1) = HDINPUTDATAMOR%MPROPSETSCYL(DIndx(1))%PROPD
+      D(2) = HDINPUTDATAMOR%MPROPSETSCYL(DIndx(2))%PROPD
+
+
+      IF ((JPosHd(3,1)*JPosHd(3,2)) < 0.0-EPS) then
+         ErrMsg='Hydrodyn members must have joints at SWL, Member #: '//trim(Num2LStr(ihd)); ErrStat=ErrID_Fatal;
+         call WrScr(ErrMsg)
+         return
+      ENDIF
+   
+      !Loop over SubDyn elements to find the one matching to HD:
+      !Only if submerged:
+      IF (JPosHd(3,1) < 0.0+EPS .AND. JPosHd(3,2) < 0.0 + EPS) then
+         
+         !Elements
+         DO i = 1, size(p%ElemProps)
+           
+             !Get SD node coordinates for each element (very hard to understand whether p%Elements contains node or joint index in col2/3)
+             NIndx1 = p%Elems(i,2)
+             NIndx2 = p%Elems(i,3)
+             NPos1  = Init%NODES(NIndx1, 2:4)
+             NPos2  = Init%NODES(NIndx2, 2:4)
+
+             !Element coefficient:
+             if (isBetweenAandB(JPosHd(:,1), JPosHd(:,2), NPos1) .AND. isBetweenAandB(JPosHd(:,1), JPosHd(:,2), NPos2)) then 
+                p%ElemProps(i)%AddedMass%HDCa    = (CA(1) + CA(2))/2.
+                p%ElemProps(i)%AddedMass%HDArea  = Pi*((D(1)+D(2))/2.)**2/4.0
+                FOUND_SD = .true.
+             endif
+         ENDDO
+         
+         IF (.NOT. FOUND_SD) then
+            ErrMsg='Failed to find SubDyn element for HydroDyn added mass coefficient, HD element start: '&
+               //trim(Num2LStr(JPosHd(1,1)))//', '&
+               //trim(Num2LStr(JPosHd(2,1)))//', '&
+               //trim(Num2LStr(JPosHd(3,1)))//', HD element end:'&
+               //trim(Num2LStr(JPosHd(1,2)))//', '&
+               //trim(Num2LStr(JPosHd(2,2)))//', '&
+               //trim(Num2LStr(JPosHd(3,2))); ErrStat=ErrID_Warn;
+            call WrScr(ErrMsg)
+         endif
+         
+         
+         !Loop over SubDyn nodes to find the one matching a possible axial coefficient:
+        
+         DO ijoint = 1, 2
+
+            !Find the axial coefficient for the two joints of this member:
+            CAXIdx   = HDInputDataMor%INPJOINTS(JIndxHd(ijoint))%JOINTAXID
+            CAX      = HDInputDataMor%AXIALCOEFS(CAXIdx)%AxCA
+            
+            if (CAX > 0.0) then
+               
+               DO i = 1, p%NNODES
+                  
+         
+                  NPos  = Init%NODES(i, 2:4)
+         
+                  !Axial coefficient (only if axial coefficient is defined)
+                  if (NPos(1) > JPosHd(1,ijoint)-EPS .AND. NPos(1) < JPosHd(1,ijoint) +EPS) then
+                     if (NPos(2) > JPosHd(2,ijoint)-EPS .AND. NPos(2) < JPosHd(2,ijoint) +EPS) then
+                        if (NPos(3) > JPosHd(3,ijoint)-EPS .AND. NPos(3) < JPosHd(3,ijoint) +EPS) then
+                           
+                           if (ABS(MemberStartToEnd(1)) > EPS .OR. ABS(MemberStartToEnd(2)) > EPS) then
+                              ErrMsg='HydroDyn axial added mass coefficient can currently only be mapped to SubDyn in vertical direction, the member connected to this joint is not vertical: '&
+                                 //trim(Num2LStr(JPosHd(1,ijoint)))//', '&
+                                 //trim(Num2LStr(JPosHd(2,ijoint)))//', '&
+                                 //trim(Num2LStr(JPosHd(3,ijoint))); ErrStat=ErrID_Warn;
+                              call WrScr(ErrMsg)
+                           else
+                              FOUND_SDAX = .true.
+                              p%NodeAddedMass(i)%HDCa   = CAX
+                              p%NodeAddedMass(i)%HDArea = Pi*D(ijoint)**2/4.0
+                           endif
+                        endif
+                     endif
+                  endif
+         
+               ENDDO !SD-nodes
+               
+               IF (.NOT. FOUND_SDAX) then
+                  ErrMsg='Failed to find SubDyn element for HydroDyn axial added mass coefficient Joint: '&
+                     //trim(Num2LStr(JPosHd(1,ijoint)))//', '&
+                     //trim(Num2LStr(JPosHd(2,ijoint)))//', '&
+                     //trim(Num2LStr(JPosHd(3,ijoint))); ErrStat=ErrID_Warn;
+                  call WrScr(ErrMsg)
+               endif
+               
+            ENDIF !CAX>0
+         ENDDO !ijoint
+      ENDIF !below swl
+   ENDDO !HD members
+   
+     
+CONTAINS
+   LOGICAL FUNCTION isBetweenAandB(A, B, thispos)
+   REAL(FEKi), dimension(3), INTENT(IN   ) :: A, B, thispos
+   REAL(FEKi), dimension(3)                :: A_to_B, A_to_thispos
+   REAL(FEKi)                              :: dotprod
+   REAL(FEKi)                             :: EPS
+
+   EPS = 1E-6
+   A_to_B = B - A
+   A_to_thispos = thispos - A
+
+   dotprod = A_to_thispos(1)*A_to_B(1) + A_to_thispos(2)*A_to_B(2) + A_to_thispos(3)*A_to_B(3)
+
+   isBetweenAandB = .false.
+
+   if (ABS(dotprod - (NORM2(A_to_B) * NORM2(A_to_thispos))) < EPS) then
+      if (NORM2(A_to_B) + EPS > NORM2(A_to_thispos)) then
+         isBetweenAandB = .true.
+      endif
+   endif
+   END FUNCTION isBetweenAandB
+   
+  
+END SUBROUTINE GetHDAddedMassForSDElements
+ !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
 
 !> Map control cable index to control channel index
 !! Also set the InitOut%CableCChanRqst logical array to indicate which channels were requested
@@ -2024,6 +2283,9 @@ SUBROUTINE DirectElimination(Init, p, ErrStat, ErrMsg)
    integer(IntKi), dimension(:), allocatable :: RAm1 !< RA^-1(e) = a , for a given element give the index of a rigid assembly
    real(FEKi), dimension(:,:), allocatable :: MM, KK
    real(FEKi), dimension(:,:), allocatable :: Temp
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+   real(FEKi), dimension(:,:), allocatable :: MMG
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
    integer(IntKi) :: nDOF, iDOF, nDOFPerNode, iNode, iiDOF, i,j
    ErrStat = ErrID_None
    ErrMsg  = ""
@@ -2046,6 +2308,13 @@ SUBROUTINE DirectElimination(Init, p, ErrStat, ErrMsg)
       !  Reallocating
       CALL AllocAry( Init%K,      nDOF, nDOF,       'Init%K'   ,  ErrStat2, ErrMsg2); if(Failed()) return; ! system stiffness matrix 
       CALL AllocAry( Init%M,      nDOF, nDOF,       'Init%M'   ,  ErrStat2, ErrMsg2); if(Failed()) return; ! system mass matrix 
+      
+      !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+      MMG = Init%MG
+      deallocate(Init%MG)
+      CALL AllocAry( Init%MG,      nDOF, nDOF,       'Init%MG'   ,  ErrStat2, ErrMsg2); if(Failed()) return; ! system mass matrix 
+      !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+      
       CALL AllocAry( Temp   ,size(MM,1), nDOF,      'Temp'     ,  ErrStat2, ErrMsg2); if(Failed()) return; 
       CALL AllocAry( p%T_red_T,nDOF   , size(MM,1), 'T_red_T' ,  ErrStat2, ErrMsg2); if(Failed()) return; 
       ! --- Elimination (stack expensive)
@@ -2061,6 +2330,12 @@ SUBROUTINE DirectElimination(Init, p, ErrStat, ErrMsg)
       CALL LAPACK_gemm( 'N', 'N', 1.0_FeKi, MM     , p%T_red, 0.0_FeKi, Temp  , ErrStat2, ErrMsg2); if(Failed()) return
       !Init%M  = matmul(p%T_red_T, Temp)
       CALL LAPACK_gemm( 'T', 'N', 1.0_FeKi, p%T_red, Temp   , 0.0_FeKi, Init%M, ErrStat2, ErrMsg2); if(Failed()) return
+      !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+      !Temp    = matmul(MM, p%T_red)
+      CALL LAPACK_gemm( 'N', 'N', 1.0_FeKi, MMG     , p%T_red, 0.0_FeKi, Temp  , ErrStat2, ErrMsg2); if(Failed()) return
+      !Init%M  = matmul(p%T_red_T, Temp)
+      CALL LAPACK_gemm( 'T', 'N', 1.0_FeKi, p%T_red, Temp   , 0.0_FeKi, Init%MG, ErrStat2, ErrMsg2); if(Failed()) return
+      !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
       !Temp    = matmul(KK, p%T_red)
       CALL LAPACK_gemm( 'N', 'N', 1.0_FeKi, KK     , p%T_red, 0.0_FeKi, Temp  , ErrStat2, ErrMsg2); if(Failed()) return
       !Init%K  = matmul(p%T_red_T, Temp)
@@ -2509,6 +2784,98 @@ logical function isFloating(Init, p)
       endif
    enddo
 end function isFloating
+
+!-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+!Function copied from ElemM()
+!Added mass for HD elements (not axial added mass at joints): Assume same mass moments of inertia as structural
+SUBROUTINE ElemA(L, Ixx, Iyy, CA, Aadd, WaterDensity, DirCos, M)
+   !TYPE(ElemPropType), INTENT(IN) :: eP     !< Element Property
+   REAL(ReKi), INTENT( IN)        :: L, Ixx, Iyy
+   REAL(ReKi), INTENT(IN)         :: CA     !Added mass coefficient
+   REAL(ReKi), INTENT(IN)         :: Aadd   !Cross-section used for reference volume calculation for body-acceleration-dependent added mass (CA*D_hull^2/4*rho_water)
+   REAL(FEKi), INTENT(IN)         :: WaterDensity 
+   REAL(FEKi), INTENT( IN)        :: DirCos(3,3) !< From element to global: xg = DC.xe,  Kg = DC.Ke.DC^t
+   REAL(FEKi), INTENT(OUT)        :: M(12, 12)
+   
+   !Internal variables:
+   REAL(ReKi) :: A,Jzz, rho
+   REAL(FEKi) :: t, rx, ry, po
+   REAL(FEKi) :: DC(12, 12)
+   
+   !Calculate additional mass matrix from hydrodynamic added mass:
+   !Modify rho to represent added mass
+   !Set Jzz to zero to avoid torsional added mass
+   !Keep second moments of area Ixx, Iyy, they kind of represent the element shape function through the element elastic properties
+   Jzz = 0.0
+   rho = WaterDensity*CA
+   A = Aadd
+   
+   t = rho*A*L;
+   rx = rho*Ixx;
+   ry = rho*Iyy;
+   po = rho*Jzz*L;
+
+   M(1:12,1:12) = 0.0_FEKi
+
+   !Modify to avoid added mass in axial direction:
+   !M( 9,  9) = t/3.0_FEKi
+   M( 9,  9) = 0.0_FEKi
+   
+   M( 7,  7) = 13.0_FEKi*t/35.0_FEKi + 6.0_FEKi*ry/(5.0_FEKi*L)
+   M( 8,  8) = 13.0_FEKi*t/35.0_FEKi + 6.0_FEKi*rx/(5.0_FEKi*L)
+   M(12, 12) = po/3.0_FEKi
+   M(10, 10) = t*L*L/105.0_FEKi + 2.0_FEKi*L*rx/15.0_FEKi
+   M(11, 11) = t*L*L/105.0_FEKi + 2.0_FEKi*L*ry/15.0_FEKi
+   M( 2,  4) = -11.0_FEKi*t*L/210.0_FEKi - rx/10.0_FEKi
+   M( 1,  5) =  11.0_FEKi*t*L/210.0_FEKi + ry/10.0_FEKi
+   
+   !Modify to avoid added mass in axial direction:
+   !M( 3,  9) = t/6.0_FEKi
+   M( 3,  9) = 0.0_FEKi
+   
+   M( 5,  7) =  13._FEKi*t*L/420._FEKi - ry/10._FEKi
+   M( 4,  8) = -13._FEKi*t*L/420._FEKi + rx/10._FEKi
+   M( 6, 12) = po/6._FEKi
+   M( 2, 10) =  13._FEKi*t*L/420._FEKi - rx/10._FEKi
+   M( 1, 11) = -13._FEKi*t*L/420._FEKi + ry/10._FEKi
+   M( 8, 10) =  11._FEKi*t*L/210._FEKi + rx/10._FEKi
+   M( 7, 11) = -11._FEKi*t*L/210._FEKi - ry/10._FEKi
+   M( 1,  7) =  9._FEKi*t/70._FEKi - 6._FEKi*ry/(5._FEKi*L)
+   M( 2,  8) =  9._FEKi*t/70._FEKi - 6._FEKi*rx/(5._FEKi*L)
+   M( 4, 10) = -L*L*t/140._FEKi - rx*L/30._FEKi
+   M( 5, 11) = -L*L*t/140._FEKi - ry*L/30._FEKi
+
+   M( 3,  3) = M( 9,  9)
+   M( 1,  1) = M( 7,  7)
+   M( 2,  2) = M( 8,  8)
+   M( 6,  6) = M(12, 12)
+   M( 4,  4) = M(10, 10)
+   M( 5,  5) = M(11, 11)
+   M( 4,  2) = M( 2,  4)
+   M( 5,  1) = M( 1,  5)
+   M( 9,  3) = M( 3,  9)
+   M( 7,  5) = M( 5,  7)
+   M( 8,  4) = M( 4,  8)
+   M(12,  6) = M( 6, 12)
+   M(10,  2) = M( 2, 10)
+   M(11,  1) = M( 1, 11)
+   M(10,  8) = M( 8, 10)
+   M(11,  7) = M( 7, 11)
+   M( 7,  1) = M( 1,  7)
+   M( 8,  2) = M( 2,  8)
+   M(10,  4) = M( 4, 10)
+   M(11,  5) = M( 5, 11)
+
+   DC = 0.0_FEKi
+   DC( 1: 3,  1: 3) = DirCos
+   DC( 4: 6,  4: 6) = DirCos
+   DC( 7: 9,  7: 9) = DirCos
+   DC(10:12, 10:12) = DirCos
+
+   M = MATMUL( MATMUL(DC, M), TRANSPOSE(DC) ) ! TODO change me if direction cosine is transposed
+
+END SUBROUTINE ElemA
+!-------------Specific to this SubDyn-Hydrodyn coupling-----------------
 
 SUBROUTINE ElemM(ep, Me)
    TYPE(ElemPropType), INTENT(IN) :: eP        !< Element Property

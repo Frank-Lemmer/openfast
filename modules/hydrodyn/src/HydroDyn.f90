@@ -81,7 +81,11 @@ MODULE HydroDyn
 !> This routine is called at the start of the simulation to perform initialization steps. 
 !! The parameters are set here and not changed during the simulation.
 !! The initial states and initial guess for the input are defined.
-SUBROUTINE HydroDyn_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitOut, ErrStat, ErrMsg )
+   
+ !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+   !Add InputFileData arg
+ !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+SUBROUTINE HydroDyn_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, InitOut, InputFileData, ErrStat, ErrMsg )
 !..................................................................................................................................
 
       TYPE(HydroDyn_InitInputType),       INTENT(INOUT)  :: InitInp     !< Input data for initialization routine. [INOUT because of a move_alloc() statement]
@@ -101,6 +105,12 @@ SUBROUTINE HydroDyn_Init( InitInp, u, p, x, xd, z, OtherState, y, m, Interval, I
                                                                         !!   Output is the actual coupling interval that will be used 
                                                                         !!   by the glue code.
       TYPE(HydroDyn_InitOutputType),      INTENT(  OUT)  :: InitOut     !< Output for initialization routine
+      
+      !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+      !Need to add InputFileData in order to get Joint Axial Coefficients, which are not part of p%
+      !TYPE(HydroDyn_InputFile),           INTENT(  OUT)  :: InputFileData                       !< Data from input file //2025: Was added below already
+      !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+      
       INTEGER(IntKi),                     INTENT(  OUT)  :: ErrStat     !< Error status of the operation
       CHARACTER(*),                       INTENT(  OUT)  :: ErrMsg      !< Error message if ErrStat /= ErrID_None
 
@@ -861,7 +871,10 @@ CONTAINS
       ! NOTE: All of the pointer data originated in SeaState, and SeaState is responsible for deallocating the data
       !        all other modules are responsible for nullifying their versions of the pointers when they are done with the data
 
-      CALL HydroDyn_DestroyInputFile( InputFileData,   ErrStat2, ErrMsg2 ); CALL SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
+      !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+      !We need the input file data for subdyn, don't delete it:   
+      !CALL HydroDyn_DestroyInputFile( InputFileData,   ErrStat2, ErrMsg2 );CALL SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)
+      !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
       CALL NWTC_Library_DestroyFileInfoType(InFileInfo,ErrStat2, ErrMsg2 ); CALL SetErrStat(ErrStat2,ErrMsg2,ErrStat,ErrMsg,RoutineName)  
 
    END SUBROUTINE CleanUp

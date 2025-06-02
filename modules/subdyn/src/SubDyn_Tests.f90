@@ -1,7 +1,7 @@
 module SubDyn_Tests
    use NWTC_Library
    use SubDyn_Types
-   use SD_FEM_HD
+   use SD_FEM
    use IntegerList
    
    implicit none
