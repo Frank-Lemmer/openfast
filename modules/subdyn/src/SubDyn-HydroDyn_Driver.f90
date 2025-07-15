@@ -23,8 +23,9 @@
 !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
    !This file is based on SubDyn_Driver.f90 with modifications for coupling with HD
 !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+
    
-PROGRAM SubDyn_HydroDyn_Driver
+PROGRAM SubDyn_Hydrodyn_Driver
 
    USE NWTC_Library
    USE SubDyn
@@ -34,9 +35,7 @@ PROGRAM SubDyn_HydroDyn_Driver
    USE VersionInfo
    
    !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
-   USE HydroDyn
-   USE HydroDyn_Types
-   USE HydroDyn_Output
+   USE HydroDynDriverSubs
    !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
 
    IMPLICIT NONE
@@ -67,8 +66,6 @@ PROGRAM SubDyn_HydroDyn_Driver
       REAL(ReKi)      :: uDotDotTPInSteady(6)
       type(ALoadType), allocatable :: AppliedLoads(:)  ! 7 x nSteadyForces: JointID, Fx, Fy, Fz, Mx, My, Mz
       !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
-      CHARACTER(1024) :: HDInputFile
-      LOGICAL         :: HDFlagInt
       LOGICAL         :: HDFlag
       !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
    END TYPE SD_dvr_InitInput
@@ -93,27 +90,6 @@ PROGRAM SubDyn_HydroDyn_Driver
    TYPE(SD_InputType)              :: u(NumInp)            ! System inputs
    TYPE(SD_OutputType)             :: y                    ! System outputs
    TYPE(ALoadType), pointer        :: AL                   ! Applied Load (alias to shorten notations)
-   
-   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
-   TYPE(HydroDyn_InitInputType)                        :: InitInDataHD           ! Input data for initialization
-   TYPE(HydroDyn_InitOutputType)                       :: InitOutDataHD          ! Output data from initialization
-   
-   TYPE(HydroDyn_InputFile)                            :: InputFileDataHD                       !< Data from input file
-
-   TYPE(HydroDyn_ContinuousStateType)                  :: xHD                    ! Continuous states
-   !TYPE(HydroDyn_ContinuousStateType)                  :: x_new                ! Continuous states at updated time
-   TYPE(HydroDyn_DiscreteStateType)                    :: xdHD                   ! Discrete states
-   !TYPE(HydroDyn_DiscreteStateType)                    :: xd_new               ! Discrete states at updated time
-   TYPE(HydroDyn_ConstraintStateType)                  :: zHD                    ! Constraint states
-   !TYPE(HydroDyn_ConstraintStateType)                  :: z_residual           ! Residual of the constraint state equations (Z)
-   TYPE(HydroDyn_OtherStateType)                       :: OtherStateHD           ! Other states
-   TYPE(HydroDyn_MiscVarType)                          :: mHD                    ! Misc/optimization variables
-
-   TYPE(HydroDyn_ParameterType)                        :: pHD                    ! Parameters
-   !TYPE(HydroDyn_InputType)                           :: u                    ! System inputs [OLD STYLE]
-   TYPE(HydroDyn_InputType)                            :: uHD(NumInp)            ! System inputs
-   TYPE(HydroDyn_OutputType)                           :: yHD                    ! System outputs
-   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
 
 
    INTEGER(IntKi)                  :: n                    ! Loop counter (for time step)
@@ -143,7 +119,73 @@ PROGRAM SubDyn_HydroDyn_Driver
    REAL(ReKi)                      :: UsrTime1             ! User CPU time for simulation initialization
    INTEGER                         :: StrtTime (8)         ! Start time of simulation
    CHARACTER(200)                  :: git_commit           ! String containing the current git commit hash
-   TYPE(ProgDesc), PARAMETER       :: version   = ProgDesc( 'SubDyn Driver', '', '' )  ! The version number of this program.
+   !TYPE(ProgDesc), PARAMETER       :: version   = ProgDesc( 'SubDyn Driver', '', '' )  ! The version number of this program.
+   
+   
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+   REAL(DbKi)                                         :: Interval             ! HD module requested time interval
+   TYPE(HydroDyn_InputFile)                           :: InputFileDataHD                       !< Data from input file
+      
+   type(SeaSt_InitInputType)                          :: InitInData_SeaSt     ! Input data for initialization
+   type(SeaSt_InitOutputType)                         :: InitOutData_SeaSt    ! Output data from initialization
+
+   type(SeaSt_ContinuousStateType)                    :: x_SeaSt              ! Continuous states
+   type(SeaSt_DiscreteStateType)                      :: xd_SeaSt             ! Discrete states
+   type(SeaSt_ConstraintStateType)                    :: z_SeaSt              ! Constraint states
+   type(SeaSt_OtherStateType)                         :: OtherState_SeaSt     ! Other states
+   type(SeaSt_MiscVarType)                            :: m_SeaSt              ! Misc/optimization variables
+
+   type(SeaSt_ParameterType)                          :: p_SeaSt              ! Parameters
+   type(SeaSt_InputType)                              :: u_SeaSt(NumInp)      ! System inputs
+   type(SeaSt_OutputType)                             :: y_SeaSt              ! System outputs
+ 
+   TYPE(HydroDyn_InitInputType)                       :: InitInData_HD        ! Input data for initialization
+   TYPE(HydroDyn_InitOutputType)                      :: InitOutData_HD       ! Output data from initialization
+
+   TYPE(HydroDyn_ContinuousStateType)                 :: xHD                    ! Continuous states
+   TYPE(HydroDyn_ContinuousStateType)                 :: x_newHD                ! Continuous states at updated time
+   TYPE(HydroDyn_DiscreteStateType)                   :: xdHD                   ! Discrete states
+   TYPE(HydroDyn_DiscreteStateType)                   :: xd_newHD               ! Discrete states at updated time
+   TYPE(HydroDyn_ConstraintStateType)                 :: zHD                    ! Constraint states
+   TYPE(HydroDyn_OtherStateType)                      :: OtherStateHD           ! Other states
+   TYPE(HydroDyn_MiscVarType)                         :: mHD                    ! Misc/optimization variables
+
+   TYPE(HydroDyn_ParameterType)                       :: pHD                    ! Parameters
+   TYPE(HydroDyn_InputType)                           :: uHD(NumInp)            ! System inputs
+   TYPE(HydroDyn_OutputType)                          :: yHD                    ! System outputs
+
+   !INTEGER(IntKi)                                     :: n                    ! Loop counter (for time step)
+   !INTEGER(IntKi)                                     :: ErrStat              ! Status of error message
+   !CHARACTER(ErrMsgLen)                               :: ErrMsg               ! Error message if ErrStat /= ErrID_None
+   !REAL(R8Ki)                                         :: dcm (3,3)            ! The resulting transformation matrix from X to x, (-).
+   !CHARACTER(1024)                                    :: drvrFilename         ! Filename and path for the driver input file.  This is passed in as a command line argument when running the Driver exe.
+   TYPE(HD_Drvr_Data)                                 :: drvrDataHD             ! Data for the driver program (from an input file)
+   TYPE(HD_Drvr_MappingData)                          :: mappingDataHD          ! data for mesh mappings in the driver
+   
+   !integer                                            :: StrtTime (8)         ! Start time of simulation (including intialization)
+   integer                                            :: SimStrtTime (8)      ! Start time of simulation (after initialization)
+   !real(ReKi)                                         :: PrevClockTime        ! Clock time at start of simulation in seconds
+   !real(ReKi)                                         :: UsrTime1             ! User CPU time for simulation initialization
+   real(ReKi)                                         :: UsrTime2             ! User CPU time for simulation (without intialization)
+   !real(DbKi)                                         :: TiLstPrn             ! The simulation time of the last print
+   integer                                            :: n_SttsTime           ! Number of time steps between screen status messages (-)
+
+   !integer                                            :: i                    ! Loop counter
+   
+   logical                                            :: SeaState_Initialized, HydroDyn_Initialized
+   ! For testing
+   REAL(DbKi)                                         :: maxAngle             ! For debugging, see what the largest rotational angle input is for the simulation
+
+   CHARACTER(20)                                      :: FlagArg              ! Flag argument from command line
+
+   ! Variables Init
+   !Time = -99999 ! initialize to negative number for error messages
+   !ErrStat = ErrID_None
+   !ErrMsg = ""
+   SeaState_Initialized = .false.
+   HydroDyn_Initialized = .false.
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+
    !...............................................................................................................................
    ! Routines called in initialization
    !...............................................................................................................................
@@ -165,12 +207,12 @@ PROGRAM SubDyn_HydroDyn_Driver
    CALL DispCopyrightLicense( version%Name )
    ! Obtain OpenFAST git commit hash
    git_commit = QueryGitVersion()
-   
    ! Tell our users what they're running
+   
    !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
    !CALL WrScr( ' Running '//TRIM( version%Name )//' a part of OpenFAST - '//TRIM(git_Commit)//NewLine//' linked with '//TRIM( NWTC_Ver%Name )//NewLine )
-   CALL WrScr( ' Running '//TRIM( version%Name )//' by sowento 2024 - '//' Coupling of HD and SD: HD-added mass (member-radial and joint-axial) will be added as inertial mass to SubDyn- '//' a part of OpenFAST - '//TRIM(git_Commit)//NewLine//' linked with '//TRIM( NWTC_Ver%Name )//NewLine )
-   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+   CALL WrScr( ' Running '//TRIM( version%Name )//' by sowento 2025 - '//' Coupling of HD and SD: HD-added mass (member-radial and joint-axial) will be added as inertial mass to SubDyn- '//' a part of OpenFAST - '//TRIM(git_Commit)//NewLine//' linked with '//TRIM( NWTC_Ver%Name )//NewLine )
+   !-----------------------------------------------------------------------
    
    ! Set the abort error level to a fatal error
    AbortErrLev = ErrID_Fatal
@@ -184,7 +226,7 @@ PROGRAM SubDyn_HydroDyn_Driver
    IF ( command_argument_count() == 1 ) THEN
       CALL get_command_argument(1, dvrFilename)
 
-      CALL ReadDriverInputFile( dvrFilename, drvrInitInp);
+      CALL ReadDriverInputFileSDHD( dvrFilename, drvrInitInp, drvrDataHD);
       InitInData%g            = drvrInitInp%Gravity
       InitInData%SDInputFile  = drvrInitInp%SDInputFile
       InitInData%RootName     = drvrInitInp%OutRootName
@@ -196,33 +238,114 @@ PROGRAM SubDyn_HydroDyn_Driver
 
    TMax = TimeInterval * drvrInitInp%NSteps
    
+   
    !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
-   !...............................................................................................................................
-   ! HydroDyn initialization 
-   !...............................................................................................................................
+   ! Rename all states, constraints (u, x, m, p,...) by appending "HD", rename InitInpHD to drvrDataHD
+   
+   ! Initialize Hydrodyn module
+      ! Read the PRPInputsFile:
+   CALL ReadPRPInputsFile( drvrDataHD, ErrStat, ErrMsg )
+      CALL CheckError()
+      
+   drvrDataHD%OutData%NumOuts = 0
+   drvrDataHD%OutData%n_Out   = 0
+   drvrDataHD%TMax = (drvrDataHD%NSteps-1) * drvrDataHD%TimeInterval  ! Starting time is always t = 0.0
 
-   if (drvrInitInp%HDFlag ) then
-      !HARDCODE input file values:
-      InitInDataHD%Gravity      = drvrInitInp%Gravity ! From SD
-      !InitInDataHD%defWtrDens   = 1025.0 //Disappeared from this type 2025
-      !InitInDataHD%defWtrDpth   = drvrInitInp%WtrDpth ! From SD
-      !InitInDataHD%defMSL2SWL   = 0.0
-      InitInDataHD%UseInputFile = .TRUE. 
-      !InitInDataHD%InputFile    = '..\..\reg_tests\r-test\modules\hydrodyn\hd_5MW_OC4Jckt_DLL_WTurb_WavesIrr_MGrowth\NRELOffshrBsline5MW_OC4Jacket_HydroDyn.dat'
-      InitInDataHD%InputFile    = drvrInitInp%HDInputFile !'..\..\Taisei_Morison_HydroDyn_3.5.1.dat'
-      InitInDataHD%OutRootName  = 'SubDyn-Hydrodyn.HDout.dat'
-      InitInDataHD%TMax         = TMax !From SD
-      InitInDataHD%Linearize    = .FALSE.
-   
-      ! Initialize the module
-      CALL HydroDyn_Init( InitInDataHD, uHD(1), pHD,  xHD, xdHD, zHD, OtherStateHD, yHD, mHD, TimeInterval, InitOutDataHD, InputFileDataHD, ErrStat, ErrMsg ) !TimeInterval from SD
-      if (ErrStat >= AbortErrLev) then
-            ! Clean up missing
-         call WrScr(ErrMsg)
-         call AbortIfFailed()
+     ! figure out how many time steps we should go before writing screen output (roughly once per second):      
+   n_SttsTime = MAX( 1, NINT( 1.0_DbKi / drvrDataHD%TimeInterval ) ) ! this may not be the final TimeInterval, though!!! GJH 8/14/14
+
+   IF ( drvrDataHD%PRPInputsMod < 0 ) THEN
+      if (drvrDataHD%NSteps < 3) then
+         ErrStat = ErrID_Fatal
+         ErrMsg = 'Interpolation requires at least 3 data points in PRPInputsFile when PRPInputsMod < 0.'
+         CALL CheckError()
       end if
-   end if
+   END IF
+!-------------------------------------------------------------------------------------
+!       Begin Simulation Setup
+!-------------------------------------------------------------------------------------
+ 
+      ! Initialize the SeaState module
+   InitInData_SeaSt%hasIce = .FALSE.
+   InitInData_SeaSt%Gravity      = drvrDataHD%Gravity
+   InitInData_SeaSt%defWtrDens   = drvrDataHD%WtrDens
+   InitInData_SeaSt%defWtrDpth   = drvrDataHD%WtrDpth
+   InitInData_SeaSt%defMSL2SWL   = drvrDataHD%MSL2SWL
+   InitInData_SeaSt%UseInputFile = .TRUE. 
+   InitInData_SeaSt%InputFile    = drvrDataHD%SeaStateInputFile
+   InitInData_SeaSt%OutRootName  = trim(drvrDataHD%OutRootName)//'.SEA'
+   InitInData_SeaSt%TMax         = drvrDataHD%TMax
+   InitInData_SeaSt%Linearize    = drvrDataHD%Linearize
+
+      ! Initialize the HydroDyn module
+   Interval = drvrDataHD%TimeInterval
    
+   call SeaSt_Init( InitInData_SeaSt, u_SeaSt(1), p_SeaSt,  x_SeaSt, xd_SeaSt, z_SeaSt, OtherState_SeaSt, y_SeaSt, m_SeaSt, Interval, InitOutData_SeaSt, ErrStat, ErrMsg )
+   SeaState_Initialized = .true.
+      CALL CheckError()
+
+   if ( Interval /= drvrDataHD%TimeInterval) then
+      ErrMsg = 'The SeaState Module attempted to change timestep interval, but this is not allowed.  The SeaState Module must use the Driver Interval.'
+      ErrStat = ErrID_Fatal
+      call HD_DvrEnd()
+   end if
+  
+      ! Set HD Init Inputs based on SeaStates Init Outputs
+   call SetHD_InitInputs()
+
+         ! Initialize the module
+   Interval = drvrDataHD%TimeInterval
+   CALL HydroDyn_Init( InitInData_HD, uHD(1), pHD,  xHD, xdHD, zHD, OtherStateHD, yHD, mHD, Interval, InitOutData_HD, InputFileDataHD, ErrStat, ErrMsg )
+   HydroDyn_Initialized = .true.
+      CALL CheckError()
+
+   IF ( Interval /= drvrDataHD%TimeInterval) THEN
+      ErrMsg = '  The HydroDyn Module attempted to change timestep interval, but this is not allowed.  The HydroDyn Module must use the Driver Interval.'
+      ErrStat = ErrID_Fatal
+      call HD_DvrEnd() 
+   END IF
+
+
+   ! Initialization to concatenate all module data into a single output file
+   CALL InitOutputFile(InitOutData_HD, InitOutData_SeaSt, drvrDataHD, ErrStat, ErrMsg );       CALL CheckError()
+
+   
+   ! Destroy InitInput and InitOutput data (and nullify pointers to SeaState data)
+   CALL SeaSt_DestroyInitInput(  InitInData_SeaSt,  ErrStat, ErrMsg );      CALL CheckError()
+   CALL SeaSt_DestroyInitOutput( InitOutData_SeaSt, ErrStat, ErrMsg );      CALL CheckError()
+   CALL HydroDyn_DestroyInitInput(  InitInData_HD,  ErrStat, ErrMsg );      CALL CheckError()
+   CALL HydroDyn_DestroyInitOutput( InitOutData_HD, ErrStat, ErrMsg );      CALL CheckError()
+   
+   
+   ! Create Mesh mappings
+   if ( uHD(1)%WAMITMesh%Initialized ) then
+      ! Create mesh mappings between (0,0,0) reference point mesh and the WAMIT body(ies) mesh [ 1 node per body ]
+      CALL MeshMapCreate( uHD(1)%PRPMesh, uHD(1)%WAMITMesh, mappingDataHD%HD_Ref_2_WB_P, ErrStat, ErrMsg  );         CALL CheckError()
+   endif
+   if ( uHD(1)%Morison%Mesh%Initialized ) then
+      ! Create mesh mappings between (0,0,0) reference point mesh and the Morison mesh
+      CALL MeshMapCreate( uHD(1)%PRPMesh, uHD(1)%Morison%Mesh, mappingDataHD%HD_Ref_2_M_P, ErrStat, ErrMsg  );         CALL CheckError()
+   endif
+
+   ! validate data from HD
+   IF ( drvrDataHD%PRPInputsMod < 0 ) THEN
+      if (drvrDataHD%NBody /= uHD(1)%WAMITMesh%NNodes) then
+         ErrStat = ErrID_Fatal
+         ErrMsg = 'PRPInputsFile must contain data for '//trim(num2lstr(uHD(1)%WAMITMesh%NNodes))//' WAMIT nodes as well as PRPmesh when PRPInputsMod < 0.'
+         CALL CheckError()
+      end if
+   END IF
+
+   ! Set initial inputs at t = 0
+   IF (( drvrDataHD%PRPInputsMod /= 2 ) .AND. ( drvrDataHD%PRPInputsMod >= 0 )) THEN
+      ! Set any steady-state inputs, once before the time-stepping loop (these don't change, so we don't need to update them in the time-marching simulation)
+      CALL SetHDInputs_Constant(uHD(1), mappingDataHD, drvrDataHD, ErrStat, ErrMsg);       CALL CheckError()
+   ELSE
+      CALL SetHDInputs(0.0_R8Ki, n, uHD(1), mappingDataHD, drvrDataHD, ErrStat, ErrMsg);   CALL CheckError()
+   END IF
+   
+   
+
    
    ! Initialize SubDyn module
    !CALL SD_Init( InitInData, u(1), p,  x, xd, z, OtherState, y, m, TimeInterval, InitOutData, ErrStat2, ErrMsg2 ); call AbortIfFailed()
@@ -358,6 +481,9 @@ PROGRAM SubDyn_HydroDyn_Driver
    ! Write simulation times and stop
    CALL RunTimes( StrtTime, UsrTime1, StrtTime, UsrTime1, Time )
    
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+   call HD_DvrEnd()
+   
 CONTAINS
    SUBROUTINE AbortIfFailed()
         call SetErrStat(ErrStat2, ErrMsg2, ErrStat, ErrMsg, 'SubDyn_Driver') 
@@ -384,11 +510,152 @@ CONTAINS
       if(UnEcho>0) CLOSE( UnIn)
       if(allocated(SDin)) deallocate(SDin)
    END SUBROUTINE CleanUp
+   
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+   !----------------------------------------------------------------------------------------------------------------------------------
+   subroutine SetHD_InitInputs()
+
+      InitInData_HD%Gravity      = drvrDataHD%Gravity
+      InitInData_HD%UseInputFile = .TRUE.
+      InitInData_HD%InputFile    = drvrDataHD%HDInputFile
+      InitInData_HD%OutRootName  = trim(drvrDataHD%OutRootName)//'.HD'
+      InitInData_HD%TMax         = drvrDataHD%TMax
+      InitInData_HD%Linearize    = drvrDataHD%Linearize
+   
+      ! Data from InitOutData_SeaSt:
+      InitInData_HD%InvalidWithSSExctn     =  InitOutData_SeaSt%InvalidWithSSExctn
+
+      InitInData_HD%WaveField => InitOutData_SeaSt%WaveField
+
+      IF (( drvrDataHD%PRPInputsMod /= 2 ) .AND. ( drvrDataHD%PRPInputsMod >= 0 )) THEN
+         InitInData_HD%PlatformPos  = drvrDataHD%uPRPInSteady
+      ELSE
+         InitInData_HD%PlatformPos  = drvrDataHD%PRPin(1,1:6)
+      END IF
+
+   end subroutine SetHD_InitInputs
+   !----------------------------------------------------------------------------------------------------------------------------------
+   subroutine CheckError()
+
+      IF ( ErrStat /= ErrID_None) THEN
+   
+         IF ( ErrStat >= AbortErrLev ) THEN
+            CALL HD_DvrEnd()
+         END IF
+      
+         CALL WrScr( NewLine//TRIM(ErrMsg)//NewLine )
+         ErrStat = ErrID_None
+      END IF
+
+   end subroutine CheckError
+   !----------------------------------------------------------------------------------------------------------------------------------
+   subroutine HD_DvrEnd()
+   
+            ! Local variables
+         character(*), parameter                       :: RoutineName = 'HD_DvrEnd'
+         INTEGER(IntKi)                                :: ErrStat2     ! Status of error message
+         CHARACTER(ErrMsgLen)                          :: ErrMsg2       ! Error message if ErrStat /= ErrID_None
+   
+         call WriteOutputFile(drvrDataHD, ErrStat2, ErrMsg2)
+            call SetErrStat( errStat2, errMsg2, errStat, errMsg, RoutineName )
+      
+         if (drvrDataHD%OutData%unOutFile > 0) CLOSE(drvrDataHD%OutData%unOutFile)
+      
+         if (SeaState_Initialized) then
+            call SeaSt_End( u_SeaSt(1), p_SeaSt, x_SeaSt, xd_SeaSt, z_SeaSt, OtherState_SeaSt, y_SeaSt, m_SeaSt, errStat2, errMsg2 )
+               call SetErrStat( errStat2, errMsg2, errStat, errMsg, RoutineName )
+         end if
+      
+         if (HydroDyn_Initialized) then
+            call HydroDyn_End( uHD(1), pHD, xHD, xdHD, zHD, OtherStateHD, yHD, mHD, errStat2, errMsg2 )
+               call SetErrStat( errStat2, errMsg2, errStat, errMsg, RoutineName )
+         end if
+         
+            ! Destroy Initialization data
+         CALL SeaSt_DestroyInitOutput( InitOutData_SeaSt, ErrStat2, ErrMsg2 )
+            call SetErrStat( errStat2, errMsg2, errStat, errMsg, RoutineName )
+         CALL SeaSt_DestroyInitInput( InitInData_SeaSt, ErrStat2, ErrMsg2 )
+            call SetErrStat( errStat2, errMsg2, errStat, errMsg, RoutineName )
+         CALL HydroDyn_DestroyInitInput(  InitInData_HD,  ErrStat2, ErrMsg2 )
+            call SetErrStat( errStat2, errMsg2, errStat, errMsg, RoutineName )
+         CALL HydroDyn_DestroyInitOutput( InitOutData_HD, ErrStat2, ErrMsg2 )
+            call SetErrStat( errStat2, errMsg2, errStat, errMsg, RoutineName )
+
+               ! Destroy copies of HD data
+         call HydroDyn_DestroyDiscState( xd_newHD, errStat2, errMsg2 )
+            call SetErrStat( errStat2, errMsg2, errStat, errMsg, RoutineName )
+      
+         call HydroDyn_DestroyContState( x_newHD, errStat2, errMsg2 )
+            call SetErrStat( errStat2, errMsg2, errStat, errMsg, RoutineName )
+         
+         
+            ! Destroy other data
+         IF (ALLOCATED(drvrDataHD%PRPin)) DEALLOCATE(drvrDataHD%PRPin)
+         IF (ALLOCATED(drvrDataHD%PRPinTime)) DEALLOCATE(drvrDataHD%PRPinTime)
+      
+         IF (ALLOCATED(drvrDataHD%OutData%WriteOutputHdr)) DEALLOCATE(drvrDataHD%OutData%WriteOutputHdr)
+         IF (ALLOCATED(drvrDataHD%OutData%WriteOutputUnt)) DEALLOCATE(drvrDataHD%OutData%WriteOutputUnt)
+         IF (ALLOCATED(drvrDataHD%OutData%Storage       )) DEALLOCATE(drvrDataHD%OutData%Storage       )
+      
+            ! Destroy mappings
+         CALL MeshMapDestroy( mappingDataHD%HD_Ref_2_WB_P, ErrStat2, ErrMsg2 )
+            call SetErrStat( errStat2, errMsg2, errStat, errMsg, RoutineName )
+         CALL MeshMapDestroy( mappingDataHD%HD_Ref_2_M_P, ErrStat2, ErrMsg2 )
+            call SetErrStat( errStat2, errMsg2, errStat, errMsg, RoutineName )
+         
+         CALL MeshDestroy( mappingDataHD%EDRPt_Motion, ErrStat2, ErrMsg2 )
+            call SetErrStat( errStat2, errMsg2, errStat, errMsg, RoutineName )
+         CALL MeshDestroy( mappingDataHD%EDRPt_Loads, ErrStat2, ErrMsg2 )
+            call SetErrStat( errStat2, errMsg2, errStat, errMsg, RoutineName )
+         CALL MeshDestroy( mappingDataHD%ZZZPtMeshMotion, ErrStat2, ErrMsg2 )
+            call SetErrStat( errStat2, errMsg2, errStat, errMsg, RoutineName )
+         CALL MeshDestroy( mappingDataHD%ZZZPtMeshLoads, ErrStat2, ErrMsg2 )
+            call SetErrStat( errStat2, errMsg2, errStat, errMsg, RoutineName )
+         
+         CALL MeshMapDestroy( mappingDataHD%ED_Ref_2_HD_Ref, ErrStat2, ErrMsg2 )
+            call SetErrStat( errStat2, errMsg2, errStat, errMsg, RoutineName )
+         CALL MeshMapDestroy( mappingDataHD%HD_Ref_2_ED_Ref, ErrStat2, ErrMsg2 )
+            call SetErrStat( errStat2, errMsg2, errStat, errMsg, RoutineName )
+         CALL MeshMapDestroy( mappingDataHD%HD_RefLoads_2_ED_Ref, ErrStat2, ErrMsg2 )
+            call SetErrStat( errStat2, errMsg2, errStat, errMsg, RoutineName )
+         CALL MeshMapDestroy( mappingDataHD%HD_RefLoads_2_ZZZLoads, ErrStat2, ErrMsg2 )
+            call SetErrStat( errStat2, errMsg2, errStat, errMsg, RoutineName )
+   
+         if ( ErrStat /= ErrID_None ) then
+            CALL WrScr(NewLine//NewLine//'Error status after execution:'//TRIM(Num2LStr(ErrStat))//NewLine//TRIM(ErrMsg)//NewLine)
+                              
+            if (ErrStat >= AbortErrLev) then
+               if ( time < 0.0 ) then
+                  ErrMsg = 'at initialization'
+               else if ( time > drvrDataHD%TMax ) then
+                  ErrMsg = 'after computing the solution'
+               else            
+                  ErrMsg = 'at simulation time '//trim(Num2LStr(time))//' of '//trim(Num2LStr(drvrDataHD%TMax))//' seconds'
+               end if
+                    
+               CALL ProgAbort( 'HydroDyn Driver encountered an error '//trim(errMsg)//'.'// &
+                        NewLine//' Simulation error level: '//trim(GetErrStr(errStat)), TrapErrors=.FALSE., TimeWait=3._ReKi )  ! wait 3 seconds (in case they double-clicked and got an error)
+            end if
+         end if
+
+      
+         ! Print *, time
+         call RunTimes( StrtTime, REAL(UsrTime1,ReKi), SimStrtTime, REAL(UsrTime2,ReKi), time )
+         call NormStop()
+   
+   end subroutine HD_DvrEnd
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
 
    !-------------------------------------------------------------------------------------------------------------------------------
-   SUBROUTINE ReadDriverInputFile( inputFile, InitInp)
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+   ! Added HD_Drvr_Data type as new argument to this SD-function
+   !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+   SUBROUTINE ReadDriverInputFileSDHD( inputFile, InitInp, InitInpHD)
       CHARACTER(*),                 INTENT( IN    )   :: inputFile
       TYPE(SD_dvr_InitInput),       INTENT(   OUT )   :: InitInp
+      
+      TYPE(HD_Drvr_Data),           INTENT(   OUT )   :: InitInpHD
+      
       ! Local variables  
       INTEGER                                          :: I                    ! generic integer for counting
       INTEGER                                          :: J                    ! generic integer for counting
@@ -436,7 +703,13 @@ CONTAINS
       !---------------------- ENVIRONMENTAL CONDITIONS -------------------------------------------------
       CALL ReadCom( UnIn, FileName, 'Environmental conditions header', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
       CALL ReadVar( UnIn, FileName, InitInp%Gravity, 'Gravity', 'Gravity', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
+      !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+      ! HD added: WtrDens - Water density.
+      CALL ReadVar ( UnIn, FileName, InitInpHD%WtrDens, 'WtrDens', 'Water density', ErrStat2, ErrMsg2, UnEcho ); call AbortIfFailed()
       CALL ReadVar( UnIn, FileName, InitInp%WtrDpth, 'WtrDpth', 'WtrDpth', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
+      !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+      ! HD added: MSL2SWL - Offset between still-water level and mean sea level.
+      CALL ReadVar ( UnIn, FileName, InitInpHD%MSL2SWL, 'MSL2SWL', 'Offset between still-water level and mean sea level', ErrStat2, ErrMsg2, UnEcho ); call AbortIfFailed()
       !---------------------- SubDyn -------------------------------------------------------------------
       CALL ReadCom( UnIn, FileName, 'SubDyn header', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
       CALL ReadVar( UnIn, FileName, InitInp%SDInputFile, 'HDInputFile', 'SubDyn input filename', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
@@ -445,8 +718,15 @@ CONTAINS
       CALL ReadVar( UnIn, FileName, InitInp%TimeInterval, 'TimeInterval', 'Time interval for any SubDyn inputs', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
       CALL ReadAry( UnIn, FileName, InitInp%TP_RefPoint, 3, 'TP reference point', 'TP reference point', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
       CALL ReadVar( UnIn, FileName, InitInp%SubRotateZ, 'SubRotateZ', 'Rotation angle in degrees about Z axis.', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
-      
+
       !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
+      ! MAP general settings from SD to HD:
+      InitInpHD%NSteps = InitInp%NSteps
+      InitInpHD%TimeInterval = InitInp%TimeInterval
+      InitInpHD%OutRootName = ""
+      InitInpHD%Gravity = InitInp%Gravity
+      InitInpHD%WtrDpth = InitInp%WtrDpth
+
       CALL ReadCom( UnIn, FileName, 'Hydrodyn header', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
       CALL ReadVar( UnIn, FileName, HDFlagInt, 'HDFlag', 'Hydrodyn enable/disable flag, 0 or 1', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
       
@@ -456,52 +736,106 @@ CONTAINS
          InitInp%HDFlag = .FALSE.
       endif 
       
-      CALL ReadVar( UnIn, FileName, InitInp%HDInputFile, 'HDInputFile', 'Hydrodyn input filename', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
+      CALL ReadVar( UnIn, FileName, InitInpHD%HDInputFile, 'HDInputFile', 'Hydrodyn input filename', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
       
       IF (InitInp%HDFlag) then
-         IF ( PathIsRelative( InitInp%HDInputFile ) ) then
-            InitInp%HDInputFile = TRIM(PriPath)//TRIM(InitInp%HDInputFile)
+         IF ( PathIsRelative( InitInpHD%HDInputFile ) ) then
+            InitInpHD%HDInputFile = TRIM(PriPath)//TRIM(InitInpHD%HDInputFile)
          END IF
       END IF
-      !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
       
-      !---------------------- INPUTS -------------------------------------------------------------------
-      CALL ReadCom( UnIn, FileName, 'INPUTS header', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
-      CALL ReadVar( UnIn, FileName, InitInp%InputsMod , 'InputsMod', 'Model for the inputs', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
-      CALL ReadVar( UnIn, FileName, InitInp%InputsFile, 'InputsFile', 'Filename for the SubDyn inputs', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
-      !---------------------- STEADY INPUTS (for InputsMod = 1) ----------------------------------------
-      CALL ReadCom( UnIn, FileName, 'STEADY STATE INPUTS header', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
-      IF ( InitInp%InputsMod == 1 ) THEN
-         CALL ReadAry ( UnIn, FileName, InitInp%uTPInSteady      , 6, 'uInSteady',         'Steady-state TP displacements and rotations.', ErrStat2,  ErrMsg2, UnEcho)         
-         CALL ReadAry ( UnIn, FileName, InitInp%uDotTPInSteady   , 6, 'uDotTPInSteady',    'Steady-state TP translational and rotational velocities.', ErrStat2,  ErrMsg2, UnEcho)         
-         CALL ReadAry ( UnIn, FileName, InitInp%uDotDotTPInSteady, 6, 'uDotDotTPInSteady', 'Steady-state TP translational and rotational accelerations.', ErrStat2,  ErrMsg2, UnEcho)         
-      ELSE
-         InitInp%uTPInSteady       = 0.0
-         InitInp%uDotTPInSteady    = 0.0
-         InitInp%uDotDotTPInSteady = 0.0
-         CALL ReadCom( UnIn, FileName, '0.0   0.0   0.0   0.0   0.0   0.0   uTPInSteady     ', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
-         CALL ReadCom( UnIn, FileName, '0.0   0.0   0.0   0.0   0.0   0.0   uDotTPInSteady  ', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
-         CALL ReadCom( UnIn, FileName, '0.0   0.0   0.0   0.0   0.0   0.0   uDotTPInSteady  ', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
+      ! SeaStInputFile
+      CALL ReadVar ( UnIn, FileName, InitInpHD%SeaStateInputFile, 'SeaStateInputFile', 'SeaState input filename', ErrStat2, ErrMsg2, UnEcho ); call AbortIfFailed()
+      IF ( PathIsRelative( InitInpHD%SeaStateInputFile ) ) InitInpHD%SeaStateInputFile = TRIM(PriPath)//TRIM(InitInpHD%SeaStateInputFile)
+      
+
+	   !-------------------------------------------------------------------------------------------------
+      ! PRP INPUTS section
+      !-------------------------------------------------------------------------------------------------
+
+         ! Header
+      CALL ReadCom( UnIn, FileName, 'PRP INPUTS header', ErrStat2, ErrMsg2, UnEcho ); call AbortIfFailed()
+   
+         ! PRPInputsMod
+      CALL ReadVar ( UnIn, FileName, InitInpHD%PRPInputsMod, 'PRPInputsMod', 'Model for the PRP (principal reference point) inputs', ErrStat2, ErrMsg2, UnEcho ); call AbortIfFailed()
+      
+      IF ( InitInpHD%PRPInputsMod /= 0 ) THEN
+         ErrStat=ErrID_Fatal
+         ErrMsg='PRPInputsMod must be 0 for this Subdyn-Hydrodyn-coupling.'//char(10)//'Prolematic line: '//trim(Line)
+         call AbortIfFailed()
       END IF
-      CALL AbortIfFailed()
+      
+      !    ! PtfmRefzt
+      !CALL ReadVar ( UnIn, FileName, InitInpHD%PtfmRefzt, 'PtfmRefzt', 'Vertical distance from the ground level to the platform reference point', ErrStat, ErrMsg, UnEcho ); call AbortIfFailed()
+      !
+      !    ! PRPInputsFile
+      !CALL ReadVar ( UnIn, FileName, InitInpHD%PRPInputsFile, 'PRPInputsFile', 'Filename for the PRP HydroDyn inputs', ErrStat2, ErrMsg2, UnEcho ); call AbortIfFailed()
+      !IF ( PathIsRelative( InitInpHD%PRPInputsFile ) ) InitInpHD%PRPInputsFile = TRIM(PriPath)//TRIM(InitInpHD%PRPInputsFile)
+   
+   
+      !-------------------------------------------------------------------------------------------------
+      ! PRP STEADY STATE INPUTS section
+      !-------------------------------------------------------------------------------------------------
+
+         ! Header
+      !CALL ReadCom( UnIn, FileName, 'PRP STEADY STATE INPUTS header', ErrStat2, ErrMsg2, UnEcho ); call AbortIfFailed()
+      !
+      !   ! uPRPInSteady
+      !CALL ReadAry ( UnIn, FileName, InitInpHD%uPRPInSteady, 6, 'uPRPInSteady', 'PRP Steady-state displacements and rotations.', ErrStat2,  ErrMsg2, UnEcho); call AbortIfFailed()
+      !
+      !   ! uDotPRPInSteady
+      !CALL ReadAry ( UnIn, FileName, InitInpHD%uDotPRPInSteady, 6, 'uDotPRPInSteady', 'PRP Steady-state translational and rotational velocities.', ErrStat2,  ErrMsg2, UnEcho); call AbortIfFailed()
+      !
+      !   ! uDotDotPRPInSteady
+      !CALL ReadAry ( UnIn, FileName, InitInpHD%uDotDotPRPInSteady, 6, 'uDotDotPRPInSteady', 'PRP Steady-state translational and rotational accelerations.', ErrStat2,  ErrMsg2, UnEcho); call AbortIfFailed()
+      !
+      !IF ( InitInpHD%PRPInputsMod /= 1 ) THEN
+      !   InitInpHD%uPRPInSteady       = 0.0
+      !   InitInpHD%uDotPRPInSteady    = 0.0
+      !   InitInpHD%uDotDotPRPInSteady = 0.0
+      !END IF
+      !
+      !InitInpHD%WrTxtOutFile = .true.
+      !InitInpHD%WrBinOutFile = .false.
+      !-------------------------------------------------
+
+      !---------------------- INPUTS -------------------------------------------------------------------
+      !CALL ReadCom( UnIn, FileName, 'INPUTS header', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
+      !CALL ReadVar( UnIn, FileName, InitInp%InputsMod , 'InputsMod', 'Model for the inputs', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
+      !CALL ReadVar( UnIn, FileName, InitInp%InputsFile, 'InputsFile', 'Filename for the SubDyn inputs', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
+      !!---------------------- STEADY INPUTS (for InputsMod = 1) ----------------------------------------
+      !CALL ReadCom( UnIn, FileName, 'STEADY STATE INPUTS header', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
+      !IF ( InitInp%InputsMod == 1 ) THEN
+      !   CALL ReadAry ( UnIn, FileName, InitInp%uTPInSteady      , 6, 'uInSteady',         'Steady-state TP displacements and rotations.', ErrStat2,  ErrMsg2, UnEcho)         
+      !   CALL ReadAry ( UnIn, FileName, InitInp%uDotTPInSteady   , 6, 'uDotTPInSteady',    'Steady-state TP translational and rotational velocities.', ErrStat2,  ErrMsg2, UnEcho)         
+      !   CALL ReadAry ( UnIn, FileName, InitInp%uDotDotTPInSteady, 6, 'uDotDotTPInSteady', 'Steady-state TP translational and rotational accelerations.', ErrStat2,  ErrMsg2, UnEcho)         
+      !ELSE
+      !   InitInp%uTPInSteady       = 0.0
+      !   InitInp%uDotTPInSteady    = 0.0
+      !   InitInp%uDotDotTPInSteady = 0.0
+      !   CALL ReadCom( UnIn, FileName, '0.0   0.0   0.0   0.0   0.0   0.0   uTPInSteady     ', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
+      !   CALL ReadCom( UnIn, FileName, '0.0   0.0   0.0   0.0   0.0   0.0   uDotTPInSteady  ', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
+      !   CALL ReadCom( UnIn, FileName, '0.0   0.0   0.0   0.0   0.0   0.0   uDotTPInSteady  ', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
+      !END IF
+      !CALL AbortIfFailed()
       !---------------------- FORCES ----------------------------------------
-      CALL ReadCom( UnIn, FileName, '--- FORCES INPUTS header', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
-      CALL ReadVar ( UnIn, FileName, iDummy,  'nApplied Forces', 'Number of applied forces', ErrStat2,  ErrMsg2, UnEcho); 
-      !call AbortIfFailed()
-      if (ErrStat2/=ErrID_None) then
-         ! TODO Temporary
-         call LegacyWarning('Applied loads input missing.')
-         allocate(InitInp%AppliedLoads(0), stat=ErrStat2); ErrMsg2='Allocating Forces'; call AbortIfFailed()
-      else
-         allocate(InitInp%AppliedLoads(iDummy), stat=ErrStat2); ErrMsg2='Allocating Forces'; call AbortIfFailed()
-         CALL ReadCom( UnIn, FileName, 'JointID    Fx     Fy    Fz     Mx     My     Mz', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
-         CALL ReadCom( UnIn, FileName, ' (-)       (N)   (N)    (N)   (Nm)   (Nm)   (Nm)', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
-         do i=1,iDummy
-            ! Read line and extract loads
-            read(UnIn, fmt='(A)', iostat=ErrStat2) Line ; ErrMsg2='Erro reading force input line'//num2lstr(i); call AbortIfFailed()
-            call readAppliedForce(Line, InitInp%AppliedLoads(i), PriPath, Errstat2, ErrMsg2); call AbortIfFailed()
-         enddo
-      endif
+      !CALL ReadCom( UnIn, FileName, '--- FORCES INPUTS header', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
+      !CALL ReadVar ( UnIn, FileName, iDummy,  'nApplied Forces', 'Number of applied forces', ErrStat2,  ErrMsg2, UnEcho); 
+      !!call AbortIfFailed()
+      !if (ErrStat2/=ErrID_None) then
+      !   ! TODO Temporary
+      !   call LegacyWarning('Applied loads input missing.')
+      !   allocate(InitInp%AppliedLoads(0), stat=ErrStat2); ErrMsg2='Allocating Forces'; call AbortIfFailed()
+      !else
+      !   allocate(InitInp%AppliedLoads(iDummy), stat=ErrStat2); ErrMsg2='Allocating Forces'; call AbortIfFailed()
+      !   CALL ReadCom( UnIn, FileName, 'JointID    Fx     Fy    Fz     Mx     My     Mz', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
+      !   CALL ReadCom( UnIn, FileName, ' (-)       (N)   (N)    (N)   (Nm)   (Nm)   (Nm)', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
+      !   do i=1,iDummy
+      !      ! Read line and extract loads
+      !      read(UnIn, fmt='(A)', iostat=ErrStat2) Line ; ErrMsg2='Erro reading force input line'//num2lstr(i); call AbortIfFailed()
+      !      call readAppliedForce(Line, InitInp%AppliedLoads(i), PriPath, Errstat2, ErrMsg2); call AbortIfFailed()
+      !   enddo
+      !endif
 
    
       if(UnEcho>0) CLOSE( UnEcho )
@@ -521,7 +855,7 @@ CONTAINS
          InitInp%InputsFile = TRIM(PriPath)//TRIM(InitInp%InputsFile)
       endif
 
-   END SUBROUTINE ReadDriverInputFile
+   END SUBROUTINE ReadDriverInputFileSDHD
 
    subroutine readAppliedForce(Line, AL, PriPath, Errstat, ErrMsg)
       character(*         ), intent(in   ) :: Line    ! Input line from input file
@@ -598,5 +932,6 @@ CONTAINS
       read(string,fmt,iostat=e) x
       is_int = e == 0
    end function is_int
+!----------------------------------------------------------------------------------------------------------------------------------
 !----------------------------------------------------------------------------------------------------------------------------------
 END PROGRAM 

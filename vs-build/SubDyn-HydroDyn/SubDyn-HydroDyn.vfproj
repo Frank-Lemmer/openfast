@@ -224,6 +224,7 @@
 			<Tool Name="VFFortranCompilerTool" WarnUnusedVariables="false"/></FileConfiguration></File></Filter>
 		<File RelativePath="..\..\modules\HydroDyn\src\Conv_Radiation.f90"/>
 		<File RelativePath="..\..\modules\hydrodyn\src\HydroDyn.f90"/>
+		<File RelativePath="..\..\modules\hydrodyn\src\HydroDyn_DriverSubs.f90"/>
 		<File RelativePath="..\..\modules\HydroDyn\src\HydroDyn_Input.f90"/>
 		<File RelativePath="..\..\modules\HydroDyn\src\HydroDyn_Output.f90"/>
 		<File RelativePath="..\..\modules\HydroDyn\src\Morison.f90"/>
@@ -240,20 +241,20 @@
 		<File RelativePath="..\..\modules\nwtc-library\src\NetLib\scalapack\dlasrt2.f">
 			<FileConfiguration Name="Debug_Double|Win32">
 			<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" RealKIND="realKIND4" DoublePrecisionKIND="doublePrecisionKIND8"/></FileConfiguration>
-			<FileConfiguration Name="Release_Double|Win32">
-			<Tool Name="VFFortranCompilerTool" RealKIND="realKIND4" DoublePrecisionKIND="doublePrecisionKIND8"/></FileConfiguration>
 			<FileConfiguration Name="Debug|Win32">
 			<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" RealKIND="realKIND4" DoublePrecisionKIND="doublePrecisionKIND8"/></FileConfiguration>
+			<FileConfiguration Name="Release_Double|Win32">
+			<Tool Name="VFFortranCompilerTool" RealKIND="realKIND4" DoublePrecisionKIND="doublePrecisionKIND8"/></FileConfiguration>
 			<FileConfiguration Name="Release|x64">
 			<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" RealKIND="realKIND4" DoublePrecisionKIND="doublePrecisionKIND8"/></FileConfiguration>
 			<FileConfiguration Name="Debug|x64">
 			<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" RealKIND="realKIND4" DoublePrecisionKIND="doublePrecisionKIND8"/></FileConfiguration>
 			<FileConfiguration Name="Debug_Double|x64">
 			<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" RealKIND="realKIND4" DoublePrecisionKIND="doublePrecisionKIND8"/></FileConfiguration>
-			<FileConfiguration Name="Release_Double|x64">
-			<Tool Name="VFFortranCompilerTool" RealKIND="realKIND4" DoublePrecisionKIND="doublePrecisionKIND8"/></FileConfiguration>
 			<FileConfiguration Name="Release|Win32">
-			<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" RealKIND="realKIND4" DoublePrecisionKIND="doublePrecisionKIND8"/></FileConfiguration></File>
+			<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" RealKIND="realKIND4" DoublePrecisionKIND="doublePrecisionKIND8"/></FileConfiguration>
+			<FileConfiguration Name="Release_Double|x64">
+			<Tool Name="VFFortranCompilerTool" RealKIND="realKIND4" DoublePrecisionKIND="doublePrecisionKIND8"/></FileConfiguration></File>
 		<File RelativePath="..\..\modules\nwtc-library\src\NetLib\scalapack\NWTC_ScaLAPACK.f90">
 			<FileConfiguration Name="Debug_Double|Win32">
 			<Tool Name="VFFortranCompilerTool" RealKIND="realKIND8" DoublePrecisionKIND="doublePrecisionKIND16"/></FileConfiguration>
@@ -266,20 +267,20 @@
 		<File RelativePath="..\..\modules\nwtc-library\src\NetLib\scalapack\slasrt2.f">
 			<FileConfiguration Name="Debug_Double|Win32">
 			<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" RealKIND="realKIND4" DoublePrecisionKIND="doublePrecisionKIND8"/></FileConfiguration>
-			<FileConfiguration Name="Release_Double|Win32">
-			<Tool Name="VFFortranCompilerTool" RealKIND="realKIND4" DoublePrecisionKIND="doublePrecisionKIND8"/></FileConfiguration>
 			<FileConfiguration Name="Debug|Win32">
 			<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" RealKIND="realKIND4" DoublePrecisionKIND="doublePrecisionKIND8"/></FileConfiguration>
+			<FileConfiguration Name="Release_Double|Win32">
+			<Tool Name="VFFortranCompilerTool" RealKIND="realKIND4" DoublePrecisionKIND="doublePrecisionKIND8"/></FileConfiguration>
 			<FileConfiguration Name="Release|x64">
 			<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" RealKIND="realKIND4" DoublePrecisionKIND="doublePrecisionKIND8"/></FileConfiguration>
 			<FileConfiguration Name="Debug|x64">
 			<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" RealKIND="realKIND4" DoublePrecisionKIND="doublePrecisionKIND8"/></FileConfiguration>
 			<FileConfiguration Name="Debug_Double|x64">
 			<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" RealKIND="realKIND4" DoublePrecisionKIND="doublePrecisionKIND8"/></FileConfiguration>
-			<FileConfiguration Name="Release_Double|x64">
-			<Tool Name="VFFortranCompilerTool" RealKIND="realKIND4" DoublePrecisionKIND="doublePrecisionKIND8"/></FileConfiguration>
 			<FileConfiguration Name="Release|Win32">
-			<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" RealKIND="realKIND4" DoublePrecisionKIND="doublePrecisionKIND8"/></FileConfiguration></File></Filter>
+			<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" RealKIND="realKIND4" DoublePrecisionKIND="doublePrecisionKIND8"/></FileConfiguration>
+			<FileConfiguration Name="Release_Double|x64">
+			<Tool Name="VFFortranCompilerTool" RealKIND="realKIND4" DoublePrecisionKIND="doublePrecisionKIND8"/></FileConfiguration></File></Filter>
 		<File RelativePath="..\..\modules\nwtc-library\src\NetLib\fftpack\fftpack4.1.f">
 			<FileConfiguration Name="Debug_Double|Win32">
 			<Tool Name="VFFortranCompilerTool" StandardWarnings="standardWarningsNone" WarnDeclarations="false" WarnUnusedVariables="false"/></FileConfiguration>
@@ -333,9 +334,9 @@
 		<File RelativePath="..\..\modules\SeaState\src\Current.txt">
 			<FileConfiguration Name="Debug_Double|Win32">
 			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat Current" Description="Running Registry for Current" Outputs="..\..\modules\SeaState\src\Current_Types.f90"/></FileConfiguration>
-			<FileConfiguration Name="Release_Double|Win32">
-			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat Current" Description="Running Registry for Current" Outputs="..\..\modules\SeaState\src\Current_Types.f90"/></FileConfiguration>
 			<FileConfiguration Name="Debug|Win32">
+			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat Current" Description="Running Registry for Current" Outputs="..\..\modules\SeaState\src\Current_Types.f90"/></FileConfiguration>
+			<FileConfiguration Name="Release_Double|Win32">
 			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat Current" Description="Running Registry for Current" Outputs="..\..\modules\SeaState\src\Current_Types.f90"/></FileConfiguration>
 			<FileConfiguration Name="Release|x64">
 			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat Current" Description="Running Registry for Current" Outputs="..\..\modules\SeaState\src\Current_Types.f90"/></FileConfiguration>
@@ -343,9 +344,9 @@
 			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat Current" Description="Running Registry for Current" Outputs="..\..\modules\SeaState\src\Current_Types.f90"/></FileConfiguration>
 			<FileConfiguration Name="Debug_Double|x64">
 			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat Current" Description="Running Registry for Current" Outputs="..\..\modules\SeaState\src\Current_Types.f90"/></FileConfiguration>
-			<FileConfiguration Name="Release_Double|x64">
-			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat Current" Description="Running Registry for Current" Outputs="..\..\modules\SeaState\src\Current_Types.f90"/></FileConfiguration>
 			<FileConfiguration Name="Release|Win32">
+			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat Current" Description="Running Registry for Current" Outputs="..\..\modules\SeaState\src\Current_Types.f90"/></FileConfiguration>
+			<FileConfiguration Name="Release_Double|x64">
 			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat Current" Description="Running Registry for Current" Outputs="..\..\modules\SeaState\src\Current_Types.f90"/></FileConfiguration></File>
 		<File RelativePath="..\..\modules\SeaState\src\Current_Types.f90">
 			<FileConfiguration Name="Debug_Double|Win32">
@@ -365,9 +366,9 @@
 		<File RelativePath="..\..\modules\SeaState\src\SeaState.txt">
 			<FileConfiguration Name="Debug_Double|Win32">
 			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat SeaState" Description="Running Registry for SeaState" Outputs="..\..\modules\SeaState\src\SeaState_Types.f90"/></FileConfiguration>
-			<FileConfiguration Name="Release_Double|Win32">
-			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat SeaState" Description="Running Registry for SeaState" Outputs="..\..\modules\SeaState\src\SeaState_Types.f90"/></FileConfiguration>
 			<FileConfiguration Name="Debug|Win32">
+			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat SeaState" Description="Running Registry for SeaState" Outputs="..\..\modules\SeaState\src\SeaState_Types.f90"/></FileConfiguration>
+			<FileConfiguration Name="Release_Double|Win32">
 			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat SeaState" Description="Running Registry for SeaState" Outputs="..\..\modules\SeaState\src\SeaState_Types.f90"/></FileConfiguration>
 			<FileConfiguration Name="Release|x64">
 			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat SeaState" Description="Running Registry for SeaState" Outputs="..\..\modules\SeaState\src\SeaState_Types.f90"/></FileConfiguration>
@@ -375,9 +376,9 @@
 			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat SeaState" Description="Running Registry for SeaState" Outputs="..\..\modules\SeaState\src\SeaState_Types.f90"/></FileConfiguration>
 			<FileConfiguration Name="Debug_Double|x64">
 			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat SeaState" Description="Running Registry for SeaState" Outputs="..\..\modules\SeaState\src\SeaState_Types.f90"/></FileConfiguration>
-			<FileConfiguration Name="Release_Double|x64">
-			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat SeaState" Description="Running Registry for SeaState" Outputs="..\..\modules\SeaState\src\SeaState_Types.f90"/></FileConfiguration>
 			<FileConfiguration Name="Release|Win32">
+			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat SeaState" Description="Running Registry for SeaState" Outputs="..\..\modules\SeaState\src\SeaState_Types.f90"/></FileConfiguration>
+			<FileConfiguration Name="Release_Double|x64">
 			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat SeaState" Description="Running Registry for SeaState" Outputs="..\..\modules\SeaState\src\SeaState_Types.f90"/></FileConfiguration></File>
 		<File RelativePath="..\..\modules\SeaState\src\SeaState_Types.f90">
 			<FileConfiguration Name="Debug_Double|Win32">
@@ -389,9 +390,9 @@
 		<File RelativePath="..\..\modules\SeaState\src\Waves.txt">
 			<FileConfiguration Name="Debug_Double|Win32">
 			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat Waves" Description="Running Registry for Waves" Outputs="..\..\modules\SeaState\src\Waves_Types.f90"/></FileConfiguration>
-			<FileConfiguration Name="Release_Double|Win32">
-			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat Waves" Description="Running Registry for Waves" Outputs="..\..\modules\SeaState\src\Waves_Types.f90"/></FileConfiguration>
 			<FileConfiguration Name="Debug|Win32">
+			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat Waves" Description="Running Registry for Waves" Outputs="..\..\modules\SeaState\src\Waves_Types.f90"/></FileConfiguration>
+			<FileConfiguration Name="Release_Double|Win32">
 			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat Waves" Description="Running Registry for Waves" Outputs="..\..\modules\SeaState\src\Waves_Types.f90"/></FileConfiguration>
 			<FileConfiguration Name="Release|x64">
 			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat Waves" Description="Running Registry for Waves" Outputs="..\..\modules\SeaState\src\Waves_Types.f90"/></FileConfiguration>
@@ -399,16 +400,16 @@
 			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat Waves" Description="Running Registry for Waves" Outputs="..\..\modules\SeaState\src\Waves_Types.f90"/></FileConfiguration>
 			<FileConfiguration Name="Debug_Double|x64">
 			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat Waves" Description="Running Registry for Waves" Outputs="..\..\modules\SeaState\src\Waves_Types.f90"/></FileConfiguration>
-			<FileConfiguration Name="Release_Double|x64">
-			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat Waves" Description="Running Registry for Waves" Outputs="..\..\modules\SeaState\src\Waves_Types.f90"/></FileConfiguration>
 			<FileConfiguration Name="Release|Win32">
+			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat Waves" Description="Running Registry for Waves" Outputs="..\..\modules\SeaState\src\Waves_Types.f90"/></FileConfiguration>
+			<FileConfiguration Name="Release_Double|x64">
 			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat Waves" Description="Running Registry for Waves" Outputs="..\..\modules\SeaState\src\Waves_Types.f90"/></FileConfiguration></File>
 		<File RelativePath="..\..\modules\SeaState\src\Waves2.txt">
 			<FileConfiguration Name="Debug_Double|Win32">
 			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat Waves2" Description="Running Registry for Waves2" Outputs="..\..\modules\SeaState\src\Waves2_Types.f90"/></FileConfiguration>
-			<FileConfiguration Name="Release_Double|Win32">
-			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat Waves2" Description="Running Registry for Waves2" Outputs="..\..\modules\SeaState\src\Waves2_Types.f90"/></FileConfiguration>
 			<FileConfiguration Name="Debug|Win32">
+			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat Waves2" Description="Running Registry for Waves2" Outputs="..\..\modules\SeaState\src\Waves2_Types.f90"/></FileConfiguration>
+			<FileConfiguration Name="Release_Double|Win32">
 			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat Waves2" Description="Running Registry for Waves2" Outputs="..\..\modules\SeaState\src\Waves2_Types.f90"/></FileConfiguration>
 			<FileConfiguration Name="Release|x64">
 			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat Waves2" Description="Running Registry for Waves2" Outputs="..\..\modules\SeaState\src\Waves2_Types.f90"/></FileConfiguration>
@@ -416,9 +417,9 @@
 			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat Waves2" Description="Running Registry for Waves2" Outputs="..\..\modules\SeaState\src\Waves2_Types.f90"/></FileConfiguration>
 			<FileConfiguration Name="Debug_Double|x64">
 			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat Waves2" Description="Running Registry for Waves2" Outputs="..\..\modules\SeaState\src\Waves2_Types.f90"/></FileConfiguration>
-			<FileConfiguration Name="Release_Double|x64">
-			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat Waves2" Description="Running Registry for Waves2" Outputs="..\..\modules\SeaState\src\Waves2_Types.f90"/></FileConfiguration>
 			<FileConfiguration Name="Release|Win32">
+			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat Waves2" Description="Running Registry for Waves2" Outputs="..\..\modules\SeaState\src\Waves2_Types.f90"/></FileConfiguration>
+			<FileConfiguration Name="Release_Double|x64">
 			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat Waves2" Description="Running Registry for Waves2" Outputs="..\..\modules\SeaState\src\Waves2_Types.f90"/></FileConfiguration></File>
 		<File RelativePath="..\..\modules\SeaState\src\Waves2_Types.f90">
 			<FileConfiguration Name="Debug_Double|Win32">
@@ -447,9 +448,9 @@
 		<File RelativePath="..\..\modules\subdyn\src\SubDyn_Registry.txt">
 			<FileConfiguration Name="Debug_Double|Win32">
 			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat SubDyn" Description="Running Registry for SubDyn" Outputs="..\..\modules\subdyn\src\SubDyn_Types.f90"/></FileConfiguration>
-			<FileConfiguration Name="Debug|Win32">
-			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat SubDyn" Description="Running Registry for SubDyn" Outputs="..\..\modules\subdyn\src\SubDyn_Types.f90"/></FileConfiguration>
 			<FileConfiguration Name="Release_Double|Win32">
+			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat SubDyn" Description="Running Registry for SubDyn" Outputs="..\..\modules\subdyn\src\SubDyn_Types.f90"/></FileConfiguration>
+			<FileConfiguration Name="Debug|Win32">
 			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat SubDyn" Description="Running Registry for SubDyn" Outputs="..\..\modules\subdyn\src\SubDyn_Types.f90"/></FileConfiguration>
 			<FileConfiguration Name="Release|x64">
 			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat SubDyn" Description="Running Registry for SubDyn" Outputs="..\..\modules\subdyn\src\SubDyn_Types.f90"/></FileConfiguration>
@@ -457,9 +458,9 @@
 			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat SubDyn" Description="Running Registry for SubDyn" Outputs="..\..\modules\subdyn\src\SubDyn_Types.f90"/></FileConfiguration>
 			<FileConfiguration Name="Debug_Double|x64">
 			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat SubDyn" Description="Running Registry for SubDyn" Outputs="..\..\modules\subdyn\src\SubDyn_Types.f90"/></FileConfiguration>
-			<FileConfiguration Name="Release|Win32">
-			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat SubDyn" Description="Running Registry for SubDyn" Outputs="..\..\modules\subdyn\src\SubDyn_Types.f90"/></FileConfiguration>
 			<FileConfiguration Name="Release_Double|x64">
+			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat SubDyn" Description="Running Registry for SubDyn" Outputs="..\..\modules\subdyn\src\SubDyn_Types.f90"/></FileConfiguration>
+			<FileConfiguration Name="Release|Win32">
 			<Tool Name="VFCustomBuildTool" CommandLine="CALL ..\RunRegistry.bat SubDyn" Description="Running Registry for SubDyn" Outputs="..\..\modules\subdyn\src\SubDyn_Types.f90"/></FileConfiguration></File></Filter>
 		<File RelativePath="..\..\modules\subdyn\src\FEM.f90"/>
 		<File RelativePath="..\..\modules\subdyn\src\IntegerList.f90"/>
