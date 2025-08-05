@@ -28,8 +28,10 @@ typedef  ^  CB_MatArrays  R8Ki     PhiR    {:}{:}  -  -  "FULL PhiR ( no constra
 typedef  ^  CB_MatArrays  R8Ki     OmegaL  {:}     -  -  "Eigenvalues of retained CB modes, possibly all (nDOFL or nDOFM)"
 
 #!-------------Specific to this SubDyn-Hydrodyn coupling-----------------
-typedef  ^   AddedMassType  ReKi    HDArea    -  -  -  "HydroDyn element cross-sectional area "
-typedef  ^   AddedMassType  ReKi    HDCa      -  -  -  "HydroDyn element added mass coefficient"
+typedef  ^   AddedMassType  ReKi    HDCrossSectionalAreaA    -  -  -  "HydroDyn element equivalent circular cross-sectional area perpendicular to A"
+typedef  ^   AddedMassType  ReKi    HDCrossSectionalAreaB    -  -  -  "HydroDyn element equivalent circular cross-sectional area perpendicular to B"
+typedef  ^   AddedMassType  ReKi    HDCaA      -  -  -  "HydroDyn element added mass coefficient perpendicular to A"
+typedef  ^   AddedMassType  ReKi    HDCaB      -  -  -  "HydroDyn element added mass coefficient perpendicular to B"
 #!-------------Specific to this SubDyn-Hydrodyn coupling-----------------
 #
 typedef  ^   ElemPropType  IntKi   eType    -  -  -  "Element Type"

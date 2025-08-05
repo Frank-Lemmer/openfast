@@ -63,8 +63,10 @@ IMPLICIT NONE
 ! =======================
 ! =========  AddedMassType  =======
   TYPE, PUBLIC :: AddedMassType
-    REAL(ReKi)  :: HDArea = 0.0_ReKi      !< HydroDyn element cross-sectional area  [-]
-    REAL(ReKi)  :: HDCa = 0.0_ReKi      !< HydroDyn element added mass coefficient [-]
+    REAL(ReKi)  :: HDCrossSectionalAreaA = 0.0_ReKi      !< HydroDyn element equivalent circular cross-sectional area perpendicular to A [-]
+    REAL(ReKi)  :: HDCrossSectionalAreaB = 0.0_ReKi      !< HydroDyn element equivalent circular cross-sectional area perpendicular to B [-]
+    REAL(ReKi)  :: HDCaA = 0.0_ReKi      !< HydroDyn element added mass coefficient perpendicular to A [-]
+    REAL(ReKi)  :: HDCaB = 0.0_ReKi      !< HydroDyn element added mass coefficient perpendicular to B [-]
   END TYPE AddedMassType
 ! =======================
 ! =========  ElemPropType  =======
@@ -767,8 +769,10 @@ subroutine SD_CopyAddedMassType(SrcAddedMassTypeData, DstAddedMassTypeData, Ctrl
    character(*), parameter        :: RoutineName = 'SD_CopyAddedMassType'
    ErrStat = ErrID_None
    ErrMsg  = ''
-   DstAddedMassTypeData%HDArea = SrcAddedMassTypeData%HDArea
-   DstAddedMassTypeData%HDCa = SrcAddedMassTypeData%HDCa
+   DstAddedMassTypeData%HDCrossSectionalAreaA = SrcAddedMassTypeData%HDCrossSectionalAreaA
+   DstAddedMassTypeData%HDCrossSectionalAreaB = SrcAddedMassTypeData%HDCrossSectionalAreaB
+   DstAddedMassTypeData%HDCaA = SrcAddedMassTypeData%HDCaA
+   DstAddedMassTypeData%HDCaB = SrcAddedMassTypeData%HDCaB
 end subroutine
 
 subroutine SD_DestroyAddedMassType(AddedMassTypeData, ErrStat, ErrMsg)
@@ -785,8 +789,10 @@ subroutine SD_PackAddedMassType(RF, Indata)
    type(AddedMassType), intent(in) :: InData
    character(*), parameter         :: RoutineName = 'SD_PackAddedMassType'
    if (RF%ErrStat >= AbortErrLev) return
-   call RegPack(RF, InData%HDArea)
-   call RegPack(RF, InData%HDCa)
+   call RegPack(RF, InData%HDCrossSectionalAreaA)
+   call RegPack(RF, InData%HDCrossSectionalAreaB)
+   call RegPack(RF, InData%HDCaA)
+   call RegPack(RF, InData%HDCaB)
    if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
@@ -795,8 +801,10 @@ subroutine SD_UnPackAddedMassType(RF, OutData)
    type(AddedMassType), intent(inout) :: OutData
    character(*), parameter            :: RoutineName = 'SD_UnPackAddedMassType'
    if (RF%ErrStat /= ErrID_None) return
-   call RegUnpack(RF, OutData%HDArea); if (RegCheckErr(RF, RoutineName)) return
-   call RegUnpack(RF, OutData%HDCa); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%HDCrossSectionalAreaA); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%HDCrossSectionalAreaB); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%HDCaA); if (RegCheckErr(RF, RoutineName)) return
+   call RegUnpack(RF, OutData%HDCaB); if (RegCheckErr(RF, RoutineName)) return
 end subroutine
 
 subroutine SD_CopyElemPropType(SrcElemPropTypeData, DstElemPropTypeData, CtrlCode, ErrStat, ErrMsg)

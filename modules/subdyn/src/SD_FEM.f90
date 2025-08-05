@@ -1436,7 +1436,6 @@ SUBROUTINE AssembleKM(Init, p, HDFlag, HDInputDataMor, ErrStat, ErrMsg)
 
    if (HDFlag ) then
       CALL GetHDAddedMassForSDElements(Init, p, HDInputDataMor, ErrStat, ErrMsg)
-      WaterDensity = 1025.
    end if
    !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
 
@@ -1450,11 +1449,19 @@ SUBROUTINE AssembleKM(Init, p, HDFlag, HDInputDataMor, ErrStat, ErrMsg)
       !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
       !Added mass:
       if (HDFlag ) then
-         if (p%ElemProps(i)%eType==idMemberRigid .AND. p%ElemProps(i)%AddedMass%HDCA > 0.1) then
+         if (p%ElemProps(i)%eType==idMemberRigid .AND. p%ElemProps(i)%AddedMass%HDCaA > 0.1) then
             ErrMsg2='Added mass associated with rigid element, this is not implemented yet. Problematic element: '//trim(Num2LStr(i)); ErrStat2=ErrID_Fatal;
             if(Failed()) return
          endif
-         CALL ElemA(p%ElemProps(i)%Length, p%ElemProps(i)%Ixx, p%ElemProps(i)%Iyy, p%ElemProps(i)%AddedMass%HDCa, p%ElemProps(i)%AddedMass%HDArea, WaterDensity, p%ElemProps(i)%DirCos, Mg)
+         
+         WaterDensity = 1025.
+         
+         !Only for beam members:
+         if (p%ElemProps(i)%AddedMass%HDCaA > 0.0 .OR. p%ElemProps(i)%AddedMass%HDCaB > 0.0) then
+            CALL ElemA(p%ElemProps(i)%Length, p%ElemProps(i)%Ixx, p%ElemProps(i)%Iyy, p%ElemProps(i)%AddedMass%HDCaA, p%ElemProps(i)%AddedMass%HDCaB, &
+                        p%ElemProps(i)%AddedMass%HDCrossSectionalAreaA, p%ElemProps(i)%AddedMass%HDCrossSectionalAreaB, &
+                        WaterDensity, p%ElemProps(i)%DirCos, Mg)
+         endif
       end if
       !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
 
@@ -1478,15 +1485,15 @@ SUBROUTINE AssembleKM(Init, p, HDFlag, HDInputDataMor, ErrStat, ErrMsg)
    IF (HDFlag ) then
       DO iNode = 1, p%NNodes
 
-         if (p%NodeAddedMass(iNode)%HDCa > 0.0) then
+         if (p%NodeAddedMass(iNode)%HDCaA > 0.0) then
             if (Init%Nodes(iNode,iJointType) /= idJointCantilever) then
                ErrMsg2='Axial added mass can only be added as concentrated mass for cantilever joints. Problematic node: '//trim(Num2LStr(iNode)); ErrStat2=ErrID_Fatal;
                if(Failed()) return
             endif
             ! Mass matrix of a rigid body
             M66 = 0.0_ReKi
-            HDRad = SQRT(p%NodeAddedMass(iNode)%HDArea/Pi)
-            M66(3,3) =  p%NodeAddedMass(iNode)%HDCa*WaterDensity*2.0/3.0*Pi*HDRad**3 !Only vertical!!
+            HDRad = SQRT(p%NodeAddedMass(iNode)%HDCrossSectionalAreaA/Pi)
+            M66(3,3) =  p%NodeAddedMass(iNode)%HDCaA*WaterDensity*2.0/3.0*Pi*HDRad**3 !Only vertical!!
          
             ! Adding
             DO J = 1, 6
@@ -1588,10 +1595,10 @@ SUBROUTINE GetHDAddedMassForSDElements(Init, p, HDInputDataMor, ErrStat, ErrMsg)
    CHARACTER(*),                 INTENT(  OUT) :: ErrMsg      ! Error message if ErrStat /= ErrID_None
    ! Local variables
    REAL(FEKi)               :: EPS
-   REAL(FEKi)               :: CA(2),D(2), CAX
+   REAL(FEKi)               :: CaA1, CaA2, CaB1, CaB2, A1, A2, B1, B2, CrossSectionalArea1, CrossSectionalArea2, area, CAX 
    REAL(FEKi)               :: MPROPSETID1, MPROPSETID2
    INTEGER(INTKi)           :: i, ihd, ijoint
-   INTEGER(INTKi)           :: JIndxHd(2), DIndx(2), CAXIdx
+   INTEGER(INTKi)           :: iJointHd(2), iPropIdx(2), iCA, iRecCyl
    INTEGER(INTKi)           :: NIndx1, NIndx2
 
    REAL(FEKi), dimension(3,2) :: JPosHd
@@ -1600,15 +1607,20 @@ SUBROUTINE GetHDAddedMassForSDElements(Init, p, HDInputDataMor, ErrStat, ErrMsg)
    
    EPS = 1.0e-6
    
-   !Initialize element and nodal (axial) added mass to zero:
+   !Initialize element added mass to zero:
    DO i = 1, size(p%ElemProps)
-      p%ElemProps(i)%AddedMass%HDCa = 0.0
-      p%ElemProps(i)%AddedMass%HDArea = 0.0
+      p%ElemProps(i)%AddedMass%HDCaA = 0.0
+      p%ElemProps(i)%AddedMass%HDCaB = 0.0
+      p%ElemProps(i)%AddedMass%HDCrossSectionalAreaA = 0.0
+      p%ElemProps(i)%AddedMass%HDCrossSectionalAreaB = 0.0
    ENDDO
    
+   !Initialize nodal (axial) added mass to zero:
    DO i = 1, p%NNODES
-      p%NodeAddedMass(i)%HDCa = 0.0
-      p%NodeAddedMass(i)%HDArea = 0.0
+      p%NodeAddedMass(i)%HDCaA = 0.0
+      p%NodeAddedMass(i)%HDCaB = 0.0
+      p%NodeAddedMass(i)%HDCrossSectionalAreaA = 0.0
+      p%NodeAddedMass(i)%HDCrossSectionalAreaB = 0.0
    ENDDO
    
    
@@ -1624,24 +1636,54 @@ SUBROUTINE GetHDAddedMassForSDElements(Init, p, HDInputDataMor, ErrStat, ErrMsg)
      
       FOUND_SD = .false.
       FOUND_SDAX = .false.
-        
-      CA(1) = HDInputDataMor%COEFMEMBERSCYL(ihd)%MEMBERCA1
-      CA(2) = HDInputDataMor%COEFMEMBERSCYL(ihd)%MEMBERCA2
       
-      JIndxHd(1)  = HDINPUTDATAMOR%INPMEMBERS(ihd)%MJOINTID1
-      JIndxHd(2)  = HDINPUTDATAMOR%INPMEMBERS(ihd)%MJOINTID2
-        
-      JPosHd(:,1) = HDINPUTDATAMOR%INPJOINTS(JIndxHd(1))%POSITION
-      JPosHd(:,2) = HDINPUTDATAMOR%INPJOINTS(JIndxHd(2))%POSITION
+      iJointHd(1)  = HDINPUTDATAMOR%INPMEMBERS(ihd)%MJOINTID1
+      iJointHd(2)  = HDINPUTDATAMOR%INPMEMBERS(ihd)%MJOINTID2
+      
+      JPosHd(:,1) = HDINPUTDATAMOR%INPJOINTS(iJointHd(1))%POSITION
+      JPosHd(:,2) = HDINPUTDATAMOR%INPJOINTS(iJointHd(2))%POSITION
       
       MemberStartToEnd = JPosHd(:,2) - JPosHd(:,1)
       
-      DIndx(1) = HDINPUTDATAMOR%INPMEMBERS(ihd)%MPROPSETID1
-      DIndx(2) = HDINPUTDATAMOR%INPMEMBERS(ihd)%MPROPSETID2
+      iRecCyl = HDINPUTDATAMOR%INPMEMBERS(ihd)%MMBRCOEFIDINDX !These are 1-based rec/cyl indices
       
-      D(1) = HDINPUTDATAMOR%MPROPSETSCYL(DIndx(1))%PROPD
-      D(2) = HDINPUTDATAMOR%MPROPSETSCYL(DIndx(2))%PROPD
+      IF (HDINPUTDATAMOR%INPMEMBERS(ihd)%MSECGEOM == MSecGeom_Cyl) then
 
+         ! Same coefficients in both cross-sectional dimensions for cylinders:
+         CaA1 = HDInputDataMor%COEFMEMBERSCYL(iRecCyl)%MEMBERCA1
+         CaA2 = HDInputDataMor%COEFMEMBERSCYL(iRecCyl)%MEMBERCA2
+         CaB1 = HDInputDataMor%COEFMEMBERSCYL(iRecCyl)%MEMBERCA1
+         CaB2 = HDInputDataMor%COEFMEMBERSCYL(iRecCyl)%MEMBERCA2
+         
+         iPropIdx(1) = HDINPUTDATAMOR%INPMEMBERS(ihd)%MPROPSETID1INDX !This is the 1-based index for either cyl or rec prop sets
+         iPropIdx(2) = HDINPUTDATAMOR%INPMEMBERS(ihd)%MPROPSETID2INDX
+         
+         A1 = HDINPUTDATAMOR%MPROPSETSCYL(iPropIdx(1))%PROPD
+         B1 = HDINPUTDATAMOR%MPROPSETSCYL(iPropIdx(1))%PROPD
+         A2 = HDINPUTDATAMOR%MPROPSETSCYL(iPropIdx(2))%PROPD
+         B2 = HDINPUTDATAMOR%MPROPSETSCYL(iPropIdx(2))%PROPD
+         
+         CrossSectionalArea1 = Pi*A1**2/4.0
+         CrossSectionalArea2 = Pi*A2**2/4.0
+         
+      ELSEIF (HDINPUTDATAMOR%INPMEMBERS(ihd)%MSECGEOM == MSecGeom_Rec) then
+         
+         CaA1 = HDInputDataMor%COEFMEMBERSREC(iRecCyl)%MEMBERCAA1
+         CaA2 = HDInputDataMor%COEFMEMBERSREC(iRecCyl)%MEMBERCAA2
+         CaB1 = HDInputDataMor%COEFMEMBERSREC(iRecCyl)%MEMBERCAB1
+         CaB2 = HDInputDataMor%COEFMEMBERSREC(iRecCyl)%MEMBERCAB2
+         
+         iPropIdx(1) = HDINPUTDATAMOR%INPMEMBERS(ihd)%MPROPSETID1INDX !This is the 1-based index for either cyl or rec prop sets
+         iPropIdx(2) = HDINPUTDATAMOR%INPMEMBERS(ihd)%MPROPSETID2INDX
+         
+         A1 = HDINPUTDATAMOR%MPROPSETSREC(iPropIdx(1))%PROPA
+         B1 = HDINPUTDATAMOR%MPROPSETSREC(iPropIdx(1))%PROPB
+         A2 = HDINPUTDATAMOR%MPROPSETSREC(iPropIdx(2))%PROPA
+         B2 = HDINPUTDATAMOR%MPROPSETSREC(iPropIdx(2))%PROPB
+         
+         CrossSectionalArea1 = A1*B1
+         CrossSectionalArea2 = A2*B2
+      ENDIF
 
       IF ((JPosHd(3,1)*JPosHd(3,2)) < 0.0-EPS) then
          ErrMsg='Hydrodyn members must have joints at SWL, Member #: '//trim(Num2LStr(ihd)); ErrStat=ErrID_Fatal;
@@ -1653,21 +1695,26 @@ SUBROUTINE GetHDAddedMassForSDElements(Init, p, HDInputDataMor, ErrStat, ErrMsg)
       !Only if submerged:
       IF (JPosHd(3,1) < 0.0+EPS .AND. JPosHd(3,2) < 0.0 + EPS) then
          
-         !Elements
+         !Subdyn Elements
          DO i = 1, size(p%ElemProps)
+            
+             IF (p%ElemProps(i)%eType /= idMemberRigid .AND. p%ElemProps(i)%eType /=  idMemberBeamArb .AND. p%ElemProps(i)%eType /= idMemberSpring) then
            
-             !Get SD node coordinates for each element (very hard to understand whether p%Elements contains node or joint index in col2/3)
-             NIndx1 = p%Elems(i,2)
-             NIndx2 = p%Elems(i,3)
-             NPos1  = Init%NODES(NIndx1, 2:4)
-             NPos2  = Init%NODES(NIndx2, 2:4)
+                !Get SD node coordinates for each element (very hard to understand whether p%Elements contains node or joint index in col2/3)
+                NIndx1 = p%Elems(i,2)
+                NIndx2 = p%Elems(i,3)
+                NPos1  = Init%NODES(NIndx1, 2:4) !Subdyn nodes
+                NPos2  = Init%NODES(NIndx2, 2:4) !Subdyn nodes
 
-             !Element coefficient:
-             if (isBetweenAandB(JPosHd(:,1), JPosHd(:,2), NPos1) .AND. isBetweenAandB(JPosHd(:,1), JPosHd(:,2), NPos2)) then 
-                p%ElemProps(i)%AddedMass%HDCa    = (CA(1) + CA(2))/2.
-                p%ElemProps(i)%AddedMass%HDArea  = Pi*((D(1)+D(2))/2.)**2/4.0
-                FOUND_SD = .true.
-             endif
+                !Element coefficient:
+                if (isBetweenAandB(JPosHd(:,1), JPosHd(:,2), NPos1) .AND. isBetweenAandB(JPosHd(:,1), JPosHd(:,2), NPos2)) then 
+                   p%ElemProps(i)%AddedMass%HDCaA    = (CaA1 + CaA2)/2.
+                   p%ElemProps(i)%AddedMass%HDCaB    = (CaB1 + CaB2)/2.
+                   p%ElemProps(i)%AddedMass%HDCrossSectionalAreaA  = Pi*((A1 + A2)/2.)**2/4.0 !Equivalent circular cross-section
+                   p%ElemProps(i)%AddedMass%HDCrossSectionalAreaB  = Pi*((B1 + B2)/2.)**2/4.0 !Equivalent circular cross-section
+                   FOUND_SD = .true.
+                endif
+            ENDIF
          ENDDO
          
          IF (.NOT. FOUND_SD) then
@@ -1683,12 +1730,17 @@ SUBROUTINE GetHDAddedMassForSDElements(Init, p, HDInputDataMor, ErrStat, ErrMsg)
          
          
          !Loop over SubDyn nodes to find the one matching a possible axial coefficient:
-        
          DO ijoint = 1, 2
 
             !Find the axial coefficient for the two joints of this member:
-            CAXIdx   = HDInputDataMor%INPJOINTS(JIndxHd(ijoint))%JOINTAXID
-            CAX      = HDInputDataMor%AXIALCOEFS(CAXIdx)%AxCA
+            iCA   = HDInputDataMor%INPJOINTS(iJointHd(ijoint))%JOINTAXID
+            CAX      = HDInputDataMor%AXIALCOEFS(iCA)%AxCA
+            
+            if (ijoint == 1) then
+               area = CrossSectionalArea1
+            else
+               area = CrossSectionalArea2
+            endif
             
             if (CAX > 0.0) then
                
@@ -1710,8 +1762,8 @@ SUBROUTINE GetHDAddedMassForSDElements(Init, p, HDInputDataMor, ErrStat, ErrMsg)
                               call WrScr(ErrMsg)
                            else
                               FOUND_SDAX = .true.
-                              p%NodeAddedMass(i)%HDCa   = CAX
-                              p%NodeAddedMass(i)%HDArea = Pi*D(ijoint)**2/4.0
+                              p%NodeAddedMass(i)%HDCaA   = CAX
+                              p%NodeAddedMass(i)%HDCrossSectionalAreaA = area
                            endif
                         endif
                      endif
@@ -1720,7 +1772,7 @@ SUBROUTINE GetHDAddedMassForSDElements(Init, p, HDInputDataMor, ErrStat, ErrMsg)
                ENDDO !SD-nodes
                
                IF (.NOT. FOUND_SDAX) then
-                  ErrMsg='Failed to find SubDyn element for HydroDyn axial added mass coefficient Joint: '&
+                  ErrMsg='Failed to find SubDyn beam element for HydroDyn axial added mass coefficient Joint: '&
                      //trim(Num2LStr(JPosHd(1,ijoint)))//', '&
                      //trim(Num2LStr(JPosHd(2,ijoint)))//', '&
                      //trim(Num2LStr(JPosHd(3,ijoint))); ErrStat=ErrID_Warn;
@@ -2787,19 +2839,21 @@ end function isFloating
 
 !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
 !Function copied from ElemM()
-!Added mass for HD elements (not axial added mass at joints): Assume same mass moments of inertia as structural
-SUBROUTINE ElemA(L, Ixx, Iyy, CA, Aadd, WaterDensity, DirCos, M)
+!Added mass for HD elements (not axial added mass at joints): Assume same mass distribution structural
+SUBROUTINE ElemA(L, Ixx, Iyy, CaA, CaB, AaddA, AaddB, WaterDensity, DirCos, M)
    !TYPE(ElemPropType), INTENT(IN) :: eP     !< Element Property
    REAL(ReKi), INTENT( IN)        :: L, Ixx, Iyy
-   REAL(ReKi), INTENT(IN)         :: CA     !Added mass coefficient
-   REAL(ReKi), INTENT(IN)         :: Aadd   !Cross-section used for reference volume calculation for body-acceleration-dependent added mass (CA*D_hull^2/4*rho_water)
+   REAL(ReKi), INTENT(IN)         :: CaA, CaB     !Added mass coefficient in both cross-sectional directions (for both, rectangles and circles)
+   REAL(ReKi), INTENT(IN)         :: AaddA, AaddB   !Cross-section in both cross-sectional directions (for both, rectangles and circles) 
+                                                   !used for reference volume calculation for body-acceleration-dependent added mass 
+                                                   !The area is the the one of a circle of a diameter being the side length of the rectangle or the circle diameter, respectively
    REAL(FEKi), INTENT(IN)         :: WaterDensity 
    REAL(FEKi), INTENT( IN)        :: DirCos(3,3) !< From element to global: xg = DC.xe,  Kg = DC.Ke.DC^t
    REAL(FEKi), INTENT(OUT)        :: M(12, 12)
    
    !Internal variables:
-   REAL(ReKi) :: A,Jzz, rho
-   REAL(FEKi) :: t, rx, ry, po
+   REAL(ReKi) :: Jzz
+   REAL(FEKi) :: tA, tB, rx, ry, po
    REAL(FEKi) :: DC(12, 12)
    
    !Calculate additional mass matrix from hydrodynamic added mass:
@@ -2807,13 +2861,12 @@ SUBROUTINE ElemA(L, Ixx, Iyy, CA, Aadd, WaterDensity, DirCos, M)
    !Set Jzz to zero to avoid torsional added mass
    !Keep second moments of area Ixx, Iyy, they kind of represent the element shape function through the element elastic properties
    Jzz = 0.0
-   rho = WaterDensity*CA
-   A = Aadd
    
-   t = rho*A*L;
-   rx = rho*Ixx;
-   ry = rho*Iyy;
-   po = rho*Jzz*L;
+   tA = WaterDensity*AaddA*L*CaA
+   tB = WaterDensity*AaddB*L*CaB
+   rx = WaterDensity*Ixx;
+   ry = WaterDensity*Iyy;
+   po = WaterDensity*Jzz*L;
 
    M(1:12,1:12) = 0.0_FEKi
 
@@ -2821,29 +2874,29 @@ SUBROUTINE ElemA(L, Ixx, Iyy, CA, Aadd, WaterDensity, DirCos, M)
    !M( 9,  9) = t/3.0_FEKi
    M( 9,  9) = 0.0_FEKi
    
-   M( 7,  7) = 13.0_FEKi*t/35.0_FEKi + 6.0_FEKi*ry/(5.0_FEKi*L)
-   M( 8,  8) = 13.0_FEKi*t/35.0_FEKi + 6.0_FEKi*rx/(5.0_FEKi*L)
+   M( 7,  7) = 13.0_FEKi*tA/35.0_FEKi + 6.0_FEKi*ry/(5.0_FEKi*L)
+   M( 8,  8) = 13.0_FEKi*tB/35.0_FEKi + 6.0_FEKi*rx/(5.0_FEKi*L)
    M(12, 12) = po/3.0_FEKi
-   M(10, 10) = t*L*L/105.0_FEKi + 2.0_FEKi*L*rx/15.0_FEKi
-   M(11, 11) = t*L*L/105.0_FEKi + 2.0_FEKi*L*ry/15.0_FEKi
-   M( 2,  4) = -11.0_FEKi*t*L/210.0_FEKi - rx/10.0_FEKi
-   M( 1,  5) =  11.0_FEKi*t*L/210.0_FEKi + ry/10.0_FEKi
+   M(10, 10) = tB*L*L/105.0_FEKi + 2.0_FEKi*L*rx/15.0_FEKi !About x-axis rotation faces areaB
+   M(11, 11) = tA*L*L/105.0_FEKi + 2.0_FEKi*L*ry/15.0_FEKi !About y-axis rotation faces areaA
+   M( 2,  4) = -11.0_FEKi*tB*L/210.0_FEKi - rx/10.0_FEKi    !Acceleration about x-axis, leads to inertia force in y
+   M( 1,  5) =  11.0_FEKi*tA*L/210.0_FEKi + ry/10.0_FEKi    !Acceleration about y-axis, leads to inertia force in x
    
    !Modify to avoid added mass in axial direction:
    !M( 3,  9) = t/6.0_FEKi
    M( 3,  9) = 0.0_FEKi
    
-   M( 5,  7) =  13._FEKi*t*L/420._FEKi - ry/10._FEKi
-   M( 4,  8) = -13._FEKi*t*L/420._FEKi + rx/10._FEKi
+   M( 5,  7) =  13._FEKi*tA*L/420._FEKi - ry/10._FEKi  !Acceleration parallel to x-axis, leads to inertia force about y-axis
+   M( 4,  8) = -13._FEKi*tB*L/420._FEKi + rx/10._FEKi  !Acceleration parallel to y-axis, leads to inertia force about x-axis
    M( 6, 12) = po/6._FEKi
-   M( 2, 10) =  13._FEKi*t*L/420._FEKi - rx/10._FEKi
-   M( 1, 11) = -13._FEKi*t*L/420._FEKi + ry/10._FEKi
-   M( 8, 10) =  11._FEKi*t*L/210._FEKi + rx/10._FEKi
-   M( 7, 11) = -11._FEKi*t*L/210._FEKi - ry/10._FEKi
-   M( 1,  7) =  9._FEKi*t/70._FEKi - 6._FEKi*ry/(5._FEKi*L)
-   M( 2,  8) =  9._FEKi*t/70._FEKi - 6._FEKi*rx/(5._FEKi*L)
-   M( 4, 10) = -L*L*t/140._FEKi - rx*L/30._FEKi
-   M( 5, 11) = -L*L*t/140._FEKi - ry*L/30._FEKi
+   M( 2, 10) =  13._FEKi*tB*L/420._FEKi - rx/10._FEKi !Acceleration about x-axis, leads to inertia force in y
+   M( 1, 11) = -13._FEKi*tA*L/420._FEKi + ry/10._FEKi !Acceleration about y-axis, leads to inertia force in x
+   M( 8, 10) =  11._FEKi*tB*L/210._FEKi + rx/10._FEKi !Acceleration about x-axis, leads to inertia force in y
+   M( 7, 11) = -11._FEKi*tA*L/210._FEKi - ry/10._FEKi !Acceleration about y-axis, leads to inertia force in x
+   M( 1,  7) =  9._FEKi*tA/70._FEKi - 6._FEKi*ry/(5._FEKi*L) !Acceleration parallel to x-axis, leads to inertia force parallel to x-axis
+   M( 2,  8) =  9._FEKi*tB/70._FEKi - 6._FEKi*rx/(5._FEKi*L) !Acceleration parallel to y-axis, leads to inertia force parallel to y-axis
+   M( 4, 10) = -L*L*tB/140._FEKi - rx*L/30._FEKi !Acceleration about x-axis, leads to inertia force about x-axis
+   M( 5, 11) = -L*L*tA/140._FEKi - ry*L/30._FEKi !Acceleration about y-axis, leads to inertia force about y-axis
 
    M( 3,  3) = M( 9,  9)
    M( 1,  1) = M( 7,  7)

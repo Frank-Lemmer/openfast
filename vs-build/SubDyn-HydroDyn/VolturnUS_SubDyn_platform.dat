@@ -1,0 +1,206 @@
+----------- SubDyn MultiMember Support Structure Input File ---------------------------
+Flexible tower and flexible platform defined in SubDyn. Author: R. Bergua. Date: 20250317. 
+-------------------------- SIMULATION CONTROL -----------------------------------------
+False            Echo        - Echo input data to "<rootname>.SD.ech" (flag)
+"DEFAULT"        SDdeltaT    - Local Integration Step. If "default", the glue-code integration step will be used.
+             3   IntMethod   - Integration Method [1/2/3/4 = RK4/AB4/ABM4/AM2].
+False             SttcSolve   - Solve dynamics about static equilibrium point
+-------------------- FEA and CRAIG-BAMPTON PARAMETERS ---------------------------------
+             3   FEMMod      - FEM switch: element model in the FEM. [1= Euler-Bernoulli(E-B);  2=Tapered E-B (unavailable);  3= 2-node Timoshenko;  4= 2-node tapered Timoshenko (unavailable)]
+             1   NDiv        - Number of sub-elements per member
+             8   Nmodes      - Number of internal modes to retain. If Nmodes=0 --> Guyan Reduction. If Nmodes<0 --> retain all modes.
+           0.5   JDampings   - Damping Ratios for each retained mode (% of critical) If Nmodes>0, list Nmodes structural damping ratios for each retained mode (% of critical), or a single damping ratio to be applied to all retained modes. (last entered value will be used for all remaining modes).
+             1   GuyanDampMod - Guyan damping {0=none, 1=Rayleigh Damping, 2=user specified 6x6 matrix}
+  0.500, 0.000   RayleighDamp - Mass and stiffness proportional damping coefficients (Rayleigh Damping) [only if GuyanDampMod=1]
+             6   GuyanDampSize - Guyan damping matrix (6x6) [only if GuyanDampMod=2]
+   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00
+   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00
+   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00
+   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00
+   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00
+   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00   0.0000e+00
+---- STRUCTURE JOINTS: joints connect structure members (~Hydrodyn Input File) --------
+            37   NJoints     - Number of joints (-)
+JointID          JointXss               JointYss               JointZss     JointType JointDirX  JointDirY JointDirZ JointStiff    ![Coordinates of Member joints in SS-Coordinate System][JointType={1:cantilever, 2:universal joint, 3:revolute joint, 4:spherical joint}]
+  (-)               (m)                    (m)                    (m)         (-)        (-)        (-)       (-)     (Nm/rad) 
+21             0.0                    0.0                       0.0         1         0.0        0.0       0.0       0.0         # Interface node for SLOW/BModes
+22             0.00000                0.00000                 -14.730       1         0.0        0.0       0.0       0.0         # Keystone CM -> Set x-corrd from 0.28000 to 0 and Y coord from -0.46000 to 0!!!!!!!
+23            28.00000                0.00000                 -7.6000       1         0.0        0.0       0.0       0.0         # Umbilical CM
+30           -16.60000                0.00000                 -16.460       1         0.0        0.0       0.0       0.0         # Pontoon 3 (upwind) load cell keystone side
+31           -16.60000                0.00000                 -16.460       1         0.0        0.0       0.0       0.0         # Pontoon 3 (upwind) load cell flexible pontoon side
+32           -18.14500                0.00000                 -16.460       1         0.0        0.0       0.0       0.0         # Start flexible pontoon (measurement point 1: 0 m). We place lumped masses with an offset to reproduce the proper CM for the pontoon. 
+33           -25.25700                0.00000                 -16.460       1         0.0        0.0       0.0       0.0         # Flexible pontoon (measurement point 2: 7.112 m)
+34           -32.36900                0.00000                 -16.460       1         0.0        0.0       0.0       0.0         # Flexible pontoon (measurement point 3: 14.224 m)
+35           -39.48100                0.00000                 -16.460       1         0.0        0.0       0.0       0.0         # Flexible pontoon (measurement point 4: 21.336 m)
+36           -44.60500                0.00000                 -16.460       1         0.0        0.0       0.0       0.0         # Flexible pontoon. Sensor location. This is for the potential flow body partition. No lumped mass.
+37           -45.56000                0.00000                 -16.460       1         0.0        0.0       0.0       0.0         # End flexible pontoon
+38           -51.67000                0.00000                 -20.0         1         0.0        0.0       0.0       0.0         # Outer column bottom
+39           -59.40000                0.00000                 -14.360       1         0.0        0.0       0.0       0.0         # Fairlead pontoon 3  
+40             8.30000              -14.37600                 -16.460       1         0.0        0.0       0.0       0.0         # Pontoon 1 (downwind -Y) load cell keystone side
+41             8.30000              -14.37600                 -16.460       1         0.0        0.0       0.0       0.0         # Pontoon 1 (downwind -Y) load cell flexible pontoon side
+42             9.07250              -15.71400                 -16.460       1         0.0        0.0       0.0       0.0         # Start flexible pontoon
+43            12.62850              -21.87320                 -16.460       1         0.0        0.0       0.0       0.0         #  |
+44            16.18450              -28.03240                 -16.460       1         0.0        0.0       0.0       0.0         #  |
+45            19.74050              -34.19150                 -16.460       1         0.0        0.0       0.0       0.0         #  |
+46            22.30250              -38.62910                 -16.460       1         0.0        0.0       0.0       0.0         #  v   Sensor location. This is for the potential flow body partition. No lumped mass.
+47            22.78000              -39.45610                 -16.460       1         0.0        0.0       0.0       0.0         # End flexible pontoon
+48            25.83500              -44.7475326               -20.0         1         0.0        0.0       0.0       0.0         # Outer column bottom
+49            29.80000              -51.50000                 -14.360       1         0.0        0.0       0.0       0.0         # Fairlead pontoon 1  
+50             8.30000               14.37600                 -16.460       1         0.0        0.0       0.0       0.0         # Pontoon 2 (downwind +Y) load cell keystone side
+51             8.30000               14.37600                 -16.460       1         0.0        0.0       0.0       0.0         # Pontoon 2 (downwind +Y) load cell flexible pontoon side
+52             9.07250               15.71400                 -16.460       1         0.0        0.0       0.0       0.0         # Start flexible pontoon
+53            12.62850               21.87320                 -16.460       1         0.0        0.0       0.0       0.0         #  |
+54            16.18450               28.03240                 -16.460       1         0.0        0.0       0.0       0.0         #  |
+55            19.74050               34.19150                 -16.460       1         0.0        0.0       0.0       0.0         #  |
+56            22.30250               38.62910                 -16.460       1         0.0        0.0       0.0       0.0         #  v   Sensor location. This is for the potential flow body partition. No lumped mass.        
+57            22.78000               39.45610                 -16.460       1         0.0        0.0       0.0       0.0         # End flexible pontoon
+58            25.83500               44.7475326               -20.0         1         0.0        0.0       0.0       0.0         # Outer column bottom
+59            29.10000               51.50000                 -14.360       1         0.0        0.0       0.0       0.0         # Fairlead pontoon 2
+70            -51.67000                0.00000                 0.0          1         0.0        0.0       0.0       0.0         # Outer column top
+71             25.83500              -44.7475326               0.0          1         0.0        0.0       0.0       0.0         # Outer column top
+72             25.83500               44.7475326               0.0          1         0.0        0.0       0.0       0.0         # Outer column top
+73             0.0                     0.0                   -20.0          1         0.0        0.0       0.0       0.0         # Central column bottom
+------------------- BASE REACTION JOINTS: 1/0 for Locked/Free DOF @ each Reaction Node ---------------------
+             0   NReact      - Number of Joints with reaction forces; be sure to remove all rigid motion DOFs of the structure  (else det([K])=[0])
+RJointID   RctTDXss    RctTDYss    RctTDZss    RctRDXss    RctRDYss    RctRDZss     SSIfile ![Global Coordinate System]
+  (-)       (flag)      (flag)      (flag)      (flag)      (flag)      (flag)      (string)      
+------- INTERFACE JOINTS: 1/0 for Locked (to the TP)/Free DOF @each Interface Joint (only Locked-to-TP implemented thus far (=rigid TP)) ---------
+             1   NInterf     - !!!!!!!!!!!!!!!!!MODIFIED TO THE ROOT OF THE PONTOOON (was 11) !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!    Number of interface joints locked to the Transition Piece (TP):  be sure to remove all rigid motion dofs
+IJointID   ItfTDXss    ItfTDYss    ItfTDZss    ItfRDXss    ItfRDYss    ItfRDZss     ![Global Coordinate System]
+  (-)       (flag)      (flag)      (flag)      (flag)      (flag)      (flag)
+  21           1           1           1           1           1           1            # The interface with ElastoDyn is at the tower base
+----------------------------------- MEMBERS -------------------------------------------
+            36   NMembers    - Number of members (-)
+MemberID   MJointID1   MJointID2   MPropSetID1   MPropSetID2  MType  COSMID/MSpin   ![MType={1:beam circ., 2:cable, 3:rigid, 4:beam arb., 5:spring}. COMSID={-1:none}]
+  (-)         (-)         (-)          (-)           (-)        (-)    (-)/(deg)
+  23          22          23          2             2          3      -1          # Rigid link keystone CM-Umbilical CM  
+  24          22          30          2             2          3      -1          # Rigid link keystone CM-pontoon 3 load cell
+  30          30          31          4             4          5       2          # Spring. Pontoon 3 load cell
+  31          31          32          2             2          3      -1          # Rigid link pontoon load cell-flexible pontoon start          
+  32          32          33          3             3          1r     -1          # Flexible pontoon. Rectangular beam  
+  33          33          34          3             3          1r     -1          #  |
+  34          34          35          3             3          1r     -1          #  |
+  35          35          36          3             3          1r     -1          #  v
+  36          36          37          3             3          1r     -1          # Flexible pontoon. Rectangular beam   
+  37          37          38          2             2          3      -1          # Rigid link end flexible pontoon-outer column center of mass           
+  38          38          39          2             2          3      -1          # Rigid link outer column center of mass-fairlead 
+  25          22          40          2             2          3      -1          # Rigid link keystone CM-pontoon 1 load cell
+  40          40          41          4             4          5       3          # Spring. Pontoon 1 load cell
+  41          41          42          2             2          3      -1          # Rigid link pontoon load cell-flexible pontoon start          
+  42          42          43          3             3          1r     -1          # Flexible pontoon. Rectangular beam  
+  43          43          44          3             3          1r     -1          #  |
+  44          44          45          3             3          1r     -1          #  |
+  45          45          46          3             3          1r     -1          #  v 
+  46          46          47          3             3          1r     -1          # Flexible pontoon. Rectangular beam   
+  47          47          48          2             2          3      -1          # Rigid link end flexible pontoon-outer column center of mass           
+  48          48          49          2             2          3      -1          # Rigid link outer column center of mass-fairlead  
+  26          22          50          2             2          3      -1          # Rigid link keystone CM-pontoon 2 load cell
+  50          50          51          4             4          5       4          # Spring. Pontoon 2 load cell
+  51          51          52          2             2          3      -1          # Rigid link pontoon load cell-flexible pontoon start          
+  52          52          53          3             3          1r     -1          # Flexible pontoon. Rectangular beam  
+  53          53          54          3             3          1r     -1          #  |
+  54          54          55          3             3          1r     -1          #  |
+  55          55          56          3             3          1r     -1          #  v	
+  56          56          57          3             3          1r     -1          # Flexible pontoon. Rectangular beam   
+  57          57          58          2             2          3      -1          # Rigid link outer column center of mass-fairlead    
+  58          58          59          2             2          3      -1          # Rigid link end flexible pontoon-outer column center of mass           
+  70          21          22          5             5          1c     -1          # Pseudo-flexible central column (to match Hydrodyn added mass)
+  71          38          70          1             1          1c     -1          # Pseudo-flexible outer column (to match Hydrodyn added mass)
+  72          48          71          1             1          1c     -1          # Pseudo-flexible outer column (to match Hydrodyn added mass)
+  73          58          72          1             1          1c     -1          # Pseudo-flexible outer column (to match Hydrodyn added mass)
+  74          22          73          5             5          1c     -1          # Pseudo-flexible central column bottom (to match Hydrodyn added mass)
+------------------ CIRCULAR BEAM CROSS-SECTION PROPERTIES -----------------------------
+             2   NPropSets   - Number of structurally unique cross-sections
+PropSetID     YoungE          ShearG          MatDens          XsecD           XsecT
+  (-)         (N/m2)          (N/m2)          (kg/m3)           (m)             (m)
+   1          6.37115E+11     1820E9         96500.0         1.1283791670955126            0.0        # Outer column with unit area; MatDens=1.93E6/20
+   5          6.37115E+11     1820E9         264500.0        1.1283791670955126            0.0        # Central column with unit area; MatDens=5.29E6/20
+----------------- RECTANGULAR BEAM CROSS-SECTION PROPERTIES ---------------------------
+             1   NPropSets   - Number of structurally unique cross-sections
+PropSetID     YoungE          ShearG          MatDens          XsecA          XsecB           XsecT
+  (-)         (N/m2)          (N/m2)          (kg/m3)           (m)            (m)             (m)
+   3        5.07E9        1.3231E9           0.5            12.43          7.08              0      # Pontoon poperties (straight rectangular beam). XsecT = 0 for a solid beam. "Almost" massless beam to account for the eccentricity through lumped massses. For reference, smaller density may result in issues for the complete model.   
+----------------- ARBITRARY BEAM CROSS-SECTION PROPERTIES -----------------------------
+             0   NXPropSets  - Number of structurally unique non-circular cross-sections (if 0 the following table is ignored)
+PropSetID     YoungE          ShearG          MatDens          XsecA          XsecAsx       XsecAsy       XsecJxx       XsecJyy        XsecJ0    XsecJt
+  (-)         (N/m2)          (N/m2)          (kg/m3)          (m2)            (m2)          (m2)          (m4)          (m4)          (m4)       (m4)
+-------------------------- CABLE PROPERTIES -------------------------------------------
+             0   NCablePropSets   - Number of cable cable properties
+PropSetID     EA          MatDens        T0         CtrlChannel
+  (-)         (N)         (kg/m)        (N)             (-)
+----------------------- RIGID LINK PROPERTIES -----------------------------------------
+             1   NRigidPropSets - Number of rigid link properties
+PropSetID   MatDens   
+  (-)       (kg/m)
+   2           0        # Massless rigid link 
+----------------------- SPRING ELEMENT PROPERTIES -------------------------------------
+             1   NSpringPropSets - Number of spring properties
+PropSetID   k11     k12     k13     k14     k15     k16     k22     k23     k24     k25     k26     k33     k34     k35     k36     k44      k45      k46      k55      k56      k66    
+  (-)      (N/m)   (N/m)   (N/m)  (N/rad) (N/rad) (N/rad)  (N/m)   (N/m)  (N/rad) (N/rad) (N/rad)  (N/m)  (N/rad) (N/rad) (N/rad) (Nm/rad) (Nm/rad) (Nm/rad) (Nm/rad) (Nm/rad) (Nm/rad)          
+   4      1.36E11    0       0       0       0       0    0.92E11    0       0       0       0    0.92E11    0       0       0    3.60E11     0        0     1.98E11     0      1.98E11   # Load cell stiffness matrix. By means of the member cosine matrices, we are defining the axial stiffness as direction 11.
+---------------------- MEMBER COSINE MATRICES COSM(i,j) -------------------------------
+             4   NCOSMs      - Number of unique cosine matrices (i.e., of unique member alignments including principal axis rotations); ignored if NXPropSets=0   or 9999 in any element below
+COSMID    COSM11    COSM12    COSM13    COSM21    COSM22    COSM23    COSM31    COSM32    COSM33
+ (-)       (-)       (-)       (-)       (-)       (-)       (-)       (-)       (-)       (-)
+  1         0         0         1         1         0         0         0         1         0              # Tower base load cell. Axis 1 pointing upwards along global z coordinate system.
+  2        -1         0         0         0         0         1         0         1         0              # Pontoon 3 (upwind) load cell. Axis 1 pointing along the pontoon outwards in the leg (i.e., in the upwind direction).
+  3         0.5      -0.866     0         0         0         1        -0.866    -0.5       0              # Pontoon 1 (downwind -Y) load cell. Axis 1 pointing along the pontoon outwards.
+  4         0.5       0.866     0         0         0         1         0.866    -0.5       0              # Pontoon 2 (downwind +Y) load cell. Axis 1 pointing along the pontoon outwards.
+------------------------ JOINT ADDITIONAL CONCENTRATED MASSES--------------------------
+             22   NCmass      - Number of joints with concentrated masses; Global Coordinate System
+CMJointID       JMass            JMXX             JMYY             JMZZ          JMXY        JMXZ         JMYZ        MCGX      MCGY        MCGZ
+  (-)            (kg)          (kg*m^2)         (kg*m^2)         (kg*m^2)      (kg*m^2)    (kg*m^2)     (kg*m^2)       (m)      (m)          (m)
+  23            240100              0               0                0             0           0            0           0        0            0     # Umbilical mass        
+  32            432000              0               0                0             0           0            0       -2.6575      0          -2.51   # Pontoon 3 mass. 2.16E6/5 = 432,000 kg. Lumped mass to match the proper pontoon CM.   
+  33            432000              0               0                0             0           0            0       -2.3993      0          -2.51   #  |
+  34            432000              0               0                0             0           0            0       -2.1410      0          -2.51   #  |
+  35            432000              0               0                0             0           0            0       -1.8827      0          -2.51   #  v
+  37            432000              0               0                0             0           0            0       -2.6575      0          -2.51   # Pontoon mass.
+  42            432000              0               0                0             0           0            0        1.3288    -2.3015      -2.51   # Pontoon 1 mass. 2.16E6/5 = 432,000 kg. Lumped mass to match the proper pontoon CM.     
+  43            432000              0               0                0             0           0            0        1.1997    -2.0779      -2.51   #  |  
+  44            432000              0               0                0             0           0            0        1.0705    -1.8542      -2.51   #  |  
+  45            432000              0               0                0             0           0            0        0.9414    -1.6305      -2.51   #  v  
+  47            432000              0               0                0             0           0            0        1.3288    -2.3015      -2.51   # Pontoon mass.
+  52            432000              0               0                0             0           0            0        1.3288     2.3015      -2.51   # Pontoon 2 mass. 2.16E6/5 = 432,000 kg. Lumped mass to match the proper pontoon CM.     
+  53            432000              0               0                0             0           0            0        1.1997     2.0779      -2.51   #  |  
+  54            432000              0               0                0             0           0            0        1.0705     1.8542      -2.51   #  |  
+  55            432000              0               0                0             0           0            0        0.9414     1.6305      -2.51   #  v  
+  57            432000              0               0                0             0           0            0        1.3288     2.3015      -2.51   # Pontoon mass.
+  30            138000              0               0                0             0           0            0           0        0            0     # Pontoon 3 load cell (half) mass
+  31            138000              0               0                0             0           0            0           0        0            0     # Pontoon 3 load cell (half) mass
+  40            138000              0               0                0             0           0            0           0        0            0     # Pontoon 1 load cell (half) mass
+  41            138000              0               0                0             0           0            0           0        0            0     # Pontoon 1 load cell (half) mass
+  50            138000              0               0                0             0           0            0           0        0            0     # Pontoon 2 load cell (half) mass
+  51            138000              0               0                0             0           0            0           0        0            0     # Pontoon 2 load cell (half) mass  
+---------------------------- OUTPUT: SUMMARY & OUTFILE --------------------------------
+True             SumPrint    - Output a Summary File (flag)
+1                OutCBModes  - Output Guyan and Craig-Bampton modes {0: No output, 1: JSON output}, (flag)
+1                OutFEMModes - Output first 30 FEM modes {0: No output, 1: JSON output} (flag)
+False            OutCOSM     - Output cosine matrices with the selected output member forces (flag)
+True             OutAll      - [T/F] Output all members' end forces
+             1   OutSwtch    - [1/2/3] Output requested channels to: 1=<rootname>.SD.out;  2=<rootname>.out (generated by FAST);  3=both files.
+True             TabDelim    - Generate a tab-delimited output in the <rootname>.SD.out file
+             1   OutDec      - Decimation of output in the <rootname>.SD.out file
+"ES11.4e2"       OutFmt      - Output format for numerical results in the <rootname>.SD.out file
+"A11"            OutSFmt     - Output format for header strings in the <rootname>.SD.out file
+------------------------- MEMBER OUTPUT LIST ------------------------------------------
+             5   NMOutputs   - Number of members whose forces/displacements/velocities/accelerations will be output (-) [Must be <= 99].
+MemberID   NOutCnt    NodeCnt ![NOutCnt=how many nodes to get output for [< 10]; NodeCnt are local ordinal numbers from the start of the member, and must be >=1 and <= NDiv+1] If NMOutputs=0 leave blank as well.
+  (-)        (-)        (-)
+  32        1       1
+  33        1       1
+  34        1       1
+  35        1       1
+  37        1       1
+------------------------- SSOutList: The next line(s) contains a list of output parameters that will be output in <rootname>.SD.out or <rootname>.out. ------
+"M1N1TDXss, M1N1TDYss, M1N1TDZss"
+"M2N1TDXss, M2N1TDYss, M2N1TDZss"
+"M3N1TDXss, M3N1TDYss, M3N1TDZss"
+"M4N1TDXss, M4N1TDYss, M4N1TDZss"
+"M5N1TDXss, M5N1TDYss, M5N1TDZss"
+"M1N1RDXe, M1N1RDYe, M1N1RDZe"
+"M2N1RDXe, M2N1RDYe, M2N1RDZe"
+"M3N1RDXe, M3N1RDYe, M3N1RDZe"
+"M4N1RDXe, M4N1RDYe, M4N1RDZe"
+"M5N1RDXe, M5N1RDYe, M5N1RDZe"
+END of output channels and end of file. (the word "END" must appear in the first 3 columns of this line)
