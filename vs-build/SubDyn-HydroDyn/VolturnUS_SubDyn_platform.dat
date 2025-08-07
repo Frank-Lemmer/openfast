@@ -65,7 +65,7 @@ JointID          JointXss               JointYss               JointZss     Join
 RJointID   RctTDXss    RctTDYss    RctTDZss    RctRDXss    RctRDYss    RctRDZss     SSIfile ![Global Coordinate System]
   (-)       (flag)      (flag)      (flag)      (flag)      (flag)      (flag)      (string)      
 ------- INTERFACE JOINTS: 1/0 for Locked (to the TP)/Free DOF @each Interface Joint (only Locked-to-TP implemented thus far (=rigid TP)) ---------
-             1   NInterf     - !!!!!!!!!!!!!!!!!MODIFIED TO THE ROOT OF THE PONTOOON (was 11) !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!    Number of interface joints locked to the Transition Piece (TP):  be sure to remove all rigid motion dofs
+             1   NInterf     - Number of interface joints locked to the Transition Piece (TP):  be sure to remove all rigid motion dofs
 IJointID   ItfTDXss    ItfTDYss    ItfTDZss    ItfRDXss    ItfRDYss    ItfRDZss     ![Global Coordinate System]
   (-)       (flag)      (flag)      (flag)      (flag)      (flag)      (flag)
   21           1           1           1           1           1           1            # The interface with ElastoDyn is at the tower base

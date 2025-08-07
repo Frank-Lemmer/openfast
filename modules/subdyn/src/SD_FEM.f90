@@ -1448,6 +1448,7 @@ SUBROUTINE AssembleKM(Init, p, HDFlag, HDInputDataMor, ErrStat, ErrMsg)
       
       !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
       !Added mass:
+      Mg = 0.0_FEKi
       if (HDFlag ) then
          if (p%ElemProps(i)%eType==idMemberRigid .AND. p%ElemProps(i)%AddedMass%HDCaA > 0.1) then
             ErrMsg2='Added mass associated with rigid element, this is not implemented yet. Problematic element: '//trim(Num2LStr(i)); ErrStat2=ErrID_Fatal;
@@ -1470,7 +1471,6 @@ SUBROUTINE AssembleKM(Init, p, HDFlag, HDInputDataMor, ErrStat, ErrMsg)
       p%FC     ( IDOF )  = p%FC( IDOF ) + FCe(1:12)             ! Note: Pretension cable forces only
       p%FG     ( IDOF )  = p%FG( IDOF ) + FGe(1:12)             ! Note: Gravity forces only
       Init%K(IDOF, IDOF) = Init%K( IDOF, IDOF) + Ke(1:12,1:12)
-      Init%M(IDOF, IDOF) = Init%M( IDOF, IDOF) + Me(1:12,1:12)
       
       !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
       !Init%M(IDOF, IDOF) = Init%M( IDOF, IDOF) + Me(1:12,1:12)
@@ -1681,8 +1681,8 @@ SUBROUTINE GetHDAddedMassForSDElements(Init, p, HDInputDataMor, ErrStat, ErrMsg)
          A2 = HDINPUTDATAMOR%MPROPSETSREC(iPropIdx(2))%PROPA
          B2 = HDINPUTDATAMOR%MPROPSETSREC(iPropIdx(2))%PROPB
          
-         CrossSectionalArea1 = A1*B1
-         CrossSectionalArea2 = A2*B2
+         CrossSectionalArea1 = A1*B1 !For axial added mass
+         CrossSectionalArea2 = A2*B2 !For axial added mass
       ENDIF
 
       IF ((JPosHd(3,1)*JPosHd(3,2)) < 0.0-EPS) then
@@ -1762,7 +1762,7 @@ SUBROUTINE GetHDAddedMassForSDElements(Init, p, HDInputDataMor, ErrStat, ErrMsg)
                               call WrScr(ErrMsg)
                            else
                               FOUND_SDAX = .true.
-                              p%NodeAddedMass(i)%HDCaA   = CAX
+                              p%NodeAddedMass(i)%HDCaA   = CAX !Only A-attribute used for axial
                               p%NodeAddedMass(i)%HDCrossSectionalAreaA = area
                            endif
                         endif
@@ -2846,7 +2846,7 @@ SUBROUTINE ElemA(L, Ixx, Iyy, CaA, CaB, AaddA, AaddB, WaterDensity, DirCos, M)
    REAL(ReKi), INTENT(IN)         :: CaA, CaB     !Added mass coefficient in both cross-sectional directions (for both, rectangles and circles)
    REAL(ReKi), INTENT(IN)         :: AaddA, AaddB   !Cross-section in both cross-sectional directions (for both, rectangles and circles) 
                                                    !used for reference volume calculation for body-acceleration-dependent added mass 
-                                                   !The area is the the one of a circle of a diameter being the side length of the rectangle or the circle diameter, respectively
+                                                   !The area is the one of a circle of a diameter being the side length of the rectangle or the circle diameter, respectively
    REAL(FEKi), INTENT(IN)         :: WaterDensity 
    REAL(FEKi), INTENT( IN)        :: DirCos(3,3) !< From element to global: xg = DC.xe,  Kg = DC.Ke.DC^t
    REAL(FEKi), INTENT(OUT)        :: M(12, 12)
@@ -2862,8 +2862,8 @@ SUBROUTINE ElemA(L, Ixx, Iyy, CaA, CaB, AaddA, AaddB, WaterDensity, DirCos, M)
    !Keep second moments of area Ixx, Iyy, they kind of represent the element shape function through the element elastic properties
    Jzz = 0.0
    
-   tA = WaterDensity*AaddA*L*CaA
-   tB = WaterDensity*AaddB*L*CaB
+   tA = WaterDensity*AaddA*L*CaA !A-side is facing y-direction
+   tB = WaterDensity*AaddB*L*CaB !B-side is facing x-direction
    rx = WaterDensity*Ixx;
    ry = WaterDensity*Iyy;
    po = WaterDensity*Jzz*L;
@@ -2874,29 +2874,29 @@ SUBROUTINE ElemA(L, Ixx, Iyy, CaA, CaB, AaddA, AaddB, WaterDensity, DirCos, M)
    !M( 9,  9) = t/3.0_FEKi
    M( 9,  9) = 0.0_FEKi
    
-   M( 7,  7) = 13.0_FEKi*tA/35.0_FEKi + 6.0_FEKi*ry/(5.0_FEKi*L)
-   M( 8,  8) = 13.0_FEKi*tB/35.0_FEKi + 6.0_FEKi*rx/(5.0_FEKi*L)
+   M( 7,  7) = 13.0_FEKi*tB/35.0_FEKi + 6.0_FEKi*ry/(5.0_FEKi*L)
+   M( 8,  8) = 13.0_FEKi*tA/35.0_FEKi + 6.0_FEKi*rx/(5.0_FEKi*L)
    M(12, 12) = po/3.0_FEKi
-   M(10, 10) = tB*L*L/105.0_FEKi + 2.0_FEKi*L*rx/15.0_FEKi !About x-axis rotation faces areaB
-   M(11, 11) = tA*L*L/105.0_FEKi + 2.0_FEKi*L*ry/15.0_FEKi !About y-axis rotation faces areaA
-   M( 2,  4) = -11.0_FEKi*tB*L/210.0_FEKi - rx/10.0_FEKi    !Acceleration about x-axis, leads to inertia force in y
-   M( 1,  5) =  11.0_FEKi*tA*L/210.0_FEKi + ry/10.0_FEKi    !Acceleration about y-axis, leads to inertia force in x
+   M(10, 10) = tA*L*L/105.0_FEKi + 2.0_FEKi*L*rx/15.0_FEKi !About x-axis rotation faces areaB
+   M(11, 11) = tB*L*L/105.0_FEKi + 2.0_FEKi*L*ry/15.0_FEKi !About y-axis rotation faces areaA
+   M( 2,  4) = -11.0_FEKi*tA*L/210.0_FEKi - rx/10.0_FEKi    !Acceleration about x-axis, leads to inertia force in y
+   M( 1,  5) =  11.0_FEKi*tB*L/210.0_FEKi + ry/10.0_FEKi    !Acceleration about y-axis, leads to inertia force in x
    
    !Modify to avoid added mass in axial direction:
    !M( 3,  9) = t/6.0_FEKi
    M( 3,  9) = 0.0_FEKi
    
-   M( 5,  7) =  13._FEKi*tA*L/420._FEKi - ry/10._FEKi  !Acceleration parallel to x-axis, leads to inertia force about y-axis
-   M( 4,  8) = -13._FEKi*tB*L/420._FEKi + rx/10._FEKi  !Acceleration parallel to y-axis, leads to inertia force about x-axis
+   M( 5,  7) =  13._FEKi*tB*L/420._FEKi - ry/10._FEKi  !Acceleration parallel to x-axis, leads to inertia force about y-axis
+   M( 4,  8) = -13._FEKi*tA*L/420._FEKi + rx/10._FEKi  !Acceleration parallel to y-axis, leads to inertia force about x-axis
    M( 6, 12) = po/6._FEKi
-   M( 2, 10) =  13._FEKi*tB*L/420._FEKi - rx/10._FEKi !Acceleration about x-axis, leads to inertia force in y
-   M( 1, 11) = -13._FEKi*tA*L/420._FEKi + ry/10._FEKi !Acceleration about y-axis, leads to inertia force in x
-   M( 8, 10) =  11._FEKi*tB*L/210._FEKi + rx/10._FEKi !Acceleration about x-axis, leads to inertia force in y
-   M( 7, 11) = -11._FEKi*tA*L/210._FEKi - ry/10._FEKi !Acceleration about y-axis, leads to inertia force in x
-   M( 1,  7) =  9._FEKi*tA/70._FEKi - 6._FEKi*ry/(5._FEKi*L) !Acceleration parallel to x-axis, leads to inertia force parallel to x-axis
-   M( 2,  8) =  9._FEKi*tB/70._FEKi - 6._FEKi*rx/(5._FEKi*L) !Acceleration parallel to y-axis, leads to inertia force parallel to y-axis
-   M( 4, 10) = -L*L*tB/140._FEKi - rx*L/30._FEKi !Acceleration about x-axis, leads to inertia force about x-axis
-   M( 5, 11) = -L*L*tA/140._FEKi - ry*L/30._FEKi !Acceleration about y-axis, leads to inertia force about y-axis
+   M( 2, 10) =  13._FEKi*tA*L/420._FEKi - rx/10._FEKi !Acceleration about x-axis, leads to inertia force in y
+   M( 1, 11) = -13._FEKi*tB*L/420._FEKi + ry/10._FEKi !Acceleration about y-axis, leads to inertia force in x
+   M( 8, 10) =  11._FEKi*tA*L/210._FEKi + rx/10._FEKi !Acceleration about x-axis, leads to inertia force in y
+   M( 7, 11) = -11._FEKi*tB*L/210._FEKi - ry/10._FEKi !Acceleration about y-axis, leads to inertia force in x
+   M( 1,  7) =  9._FEKi*tB/70._FEKi - 6._FEKi*ry/(5._FEKi*L) !Acceleration parallel to x-axis, leads to inertia force parallel to x-axis
+   M( 2,  8) =  9._FEKi*tA/70._FEKi - 6._FEKi*rx/(5._FEKi*L) !Acceleration parallel to y-axis, leads to inertia force parallel to y-axis
+   M( 4, 10) = -L*L*tA/140._FEKi - rx*L/30._FEKi !Acceleration about x-axis, leads to inertia force about x-axis
+   M( 5, 11) = -L*L*tB/140._FEKi - ry*L/30._FEKi !Acceleration about y-axis, leads to inertia force about y-axis
 
    M( 3,  3) = M( 9,  9)
    M( 1,  1) = M( 7,  7)
