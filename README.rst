@@ -4,6 +4,7 @@ OpenFAST
 THIS FORK: Includes a coupling of SubDyn and HydroDyn in order to compute SubDyn mode shapes with added-mass coefficients of HydroDyn:
 *Element added mass (radial)
 *Joint added mass (axial) 
+*Rectangular and cylindrical beams are supported, (rigid, spring and arbitrary beams are not supported for the mapping)
 are considered, while drag, dynamic pressure, hydrostatics and other added mass (element axial) are not included.
 
 The resulting FE matrices can be imported into SLOW for an elastic modeling of the floater with an inclusion of added mass within the structural added mass matrix. 
@@ -11,11 +12,13 @@ Only the member-based option is possible in HydroDyn.
 
 Hydrodyn and SubDyn need to have joints defined at the water surface.
 
-It turned out that rigid links make it impossible to use NDIV>1 in SubDyn.
+Tests included in \vs-build\SubDyn-HydroDyn\test_cantilever_beam.py.
+
+It turned out that rigid links make it impossible to use NDIV>1 in SubDyn. -> Fixed 08/2025
 
 In 2025-05, the SubDyn-hydrodyn interfaces were changed in SD and HD directly, which means openfast does no longer compile (previously the files to be changed were copied with new endings). Only the Subdyn-Hydrodyn project will compile.
 
-ATTENTION: Rectangular members are NOT YET supported!
+
 
 |actions| |nbsp| |rtfd|
 
