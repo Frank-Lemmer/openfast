@@ -3852,7 +3852,7 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
    ! Variables for Eigenvalue analysis 
    real(R8Ki), dimension(:,:), allocatable :: AA, BB, CC, DD ! Linearization matrices
    character(len=*),parameter :: ReFmt='ES15.6E2'
-   character(len=*),parameter :: ReFmtKM='ES16.9E2'
+   character(len=*),parameter :: ReFmtKM='ES25.15E3'
    character(len=*),parameter :: SFmt='A15,1x' ! Need +1 for comma compared to ReFmt
    character(len=*),parameter :: IFmt='I7'
    
@@ -3996,6 +3996,9 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
    WRITE(UnSum, '(A)') '#     Node No.,  DOF/Node,   NodalDOF'
    call yaml_write_array(UnSum, 'DOF2Nodes', p%DOFred2Nodes , IFmt, ErrStat2, ErrMsg2, comment='(nDOFRed x 3, for each constrained DOF, col1: node index, col2: number of DOF, col3: DOF starting from 1)',label=.true.)
 
+   WRITE(UnSum, '(A)') '#Index map from elements to DOF'
+   WRITE(UnSum, '(A)') '#DOF'
+   call yaml_write_array(UnSum, 'Elems2DOF', p%ElemsDOF, IFmt, ErrStat2, ErrMsg2, comment='(test)',label=.true.)
    ! Nodes properties
    write(UnSum, '("#",4x,1(A9),8('//trim(SFmt)//'))') 'Node_[#]', 'X_[m]','Y_[m]','Z_[m]', 'JType_[-]', 'JDirX_[-]','JDirY_[-]','JDirZ_[-]','JStff_[Nm/rad]'
    call yaml_write_array(UnSum, 'Nodes', Init%Nodes, ReFmt, ErrStat2, ErrMsg2, AllFmt='1(F8.0,","),3(F15.3,","),(F15.0,","),3(ES15.6,","),ES15.6') !, comment='',label=.true.)
@@ -4182,8 +4185,8 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
    !-------------------------------------------------------------------------------------------------------------
    WRITE(UnSum, '(A)') SectionDivide
    WRITE(UnSum, '(A)') '#CB Matrices (PhiM,PhiR) (reaction constraints applied)'
-   call yaml_write_array(UnSum, 'PhiM', CBparams%PhiL(:,1:p%nDOFM ), ReFmt, ErrStat2, ErrMsg2, comment='(CB modes)')
-   call yaml_write_array(UnSum, 'PhiR', CBparams%PhiR, ReFmt, ErrStat2, ErrMsg2, comment='(Guyan modes)')
+   call yaml_write_array(UnSum, 'PhiM', CBparams%PhiL(:,1:p%nDOFM ), ReFmtKM, ErrStat2, ErrMsg2, comment='(CB modes)')
+   call yaml_write_array(UnSum, 'PhiR', CBparams%PhiR, ReFmtKM, ErrStat2, ErrMsg2, comment='(Guyan modes)')
            
    
 
@@ -4207,7 +4210,8 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
    WRITE(UnSum, '(A)') SectionDivide
    WRITE(UnSum, '(A, I6)') '#FULL FEM K and M matrices. TOTAL FEM TDOFs:', p%nDOF 
    call yaml_write_array(UnSum, 'K', Init%K, ReFmtKM, ErrStat2, ErrMsg2, comment='Stiffness matrix')
-   call yaml_write_array(UnSum, 'M', Init%M, ReFmtKM, ErrStat2, ErrMsg2, comment='Mass matrix')
+   call yaml_write_array(UnSum, 'KFull', Init%KFull, ReFmtKM, ErrStat2, ErrMsg2, comment='Full Stiffness matrix')
+   call yaml_write_array(UnSum, 'M', Init%M, ReFmtKM, ErrStat2, ErrMsg2, comment='Mass matrix (with added mass effect from Hydrodyn, if enabled)')
 
    !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
    call yaml_write_array(UnSum, 'MG', Init%MG, ReFmtKM, ErrStat2, ErrMsg2, comment='Mass matrix (without added mass effect from Hydrodyn for Gravity force calculation) ')
@@ -4216,7 +4220,7 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
    ! --- write assembed GRAVITY FORCE FG VECTOR.  gravity forces applied at each node of the full system
    WRITE(UnSum, '(A)') SectionDivide
    WRITE(UnSum, '(A)') '#Gravity and cable loads applied at each node of the system (before DOF elimination with T matrix)' 
-   call yaml_write_array(UnSum, 'FG', p%FG, ReFmt, ErrStat2, ErrMsg2, comment='')
+   call yaml_write_array(UnSum, 'FG', p%FG, ReFmtKM, ErrStat2, ErrMsg2, comment='')
       
    ! --- write CB system matrices
    WRITE(UnSum, '(A)') SectionDivide
@@ -4231,8 +4235,8 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
    call yaml_write_array(UnSum, 'KMM', CBparams%OmegaL**2, ReFmt, ErrStat2, ErrMsg2, comment='(diagonal components, OmegaL^2)')
    call yaml_write_array(UnSum, 'KMMdiag', p%KMMDiag, ReFmt, ErrStat2, ErrMsg2, comment='(diagonal components, OmegaL^2)')
    IF (p%SttcSolve/= idSIM_None) THEN
-      call yaml_write_array(UnSum, 'PhiL', transpose(p%PhiL_T), ReFmt, ErrStat2, ErrMsg2, comment='')
-      call yaml_write_array(UnSum, 'PhiLOm2-1', p%PhiLInvOmgL2, ReFmt, ErrStat2, ErrMsg2, comment='')
+      call yaml_write_array(UnSum, 'PhiL', transpose(p%PhiL_T), ReFmtKM, ErrStat2, ErrMsg2, comment='')
+      call yaml_write_array(UnSum, 'PhiLOm2-1', p%PhiLInvOmgL2, ReFmtKM, ErrStat2, ErrMsg2, comment='')
       call yaml_write_array(UnSum, 'KLL^-1'   , p%KLLm1       , ReFmt, ErrStat2, ErrMsg2, comment='')
    endif
    ! --- Reduction info

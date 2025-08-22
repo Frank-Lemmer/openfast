@@ -1419,10 +1419,12 @@ SUBROUTINE AssembleKM(Init, p, HDFlag, HDInputDataMor, ErrStat, ErrMsg)
    endif
 
    CALL AllocAry( Init%K, p%nDOF, p%nDOF , 'Init%K',  ErrStat2, ErrMsg2); if(Failed()) return; ! system stiffness matrix 
+   CALL AllocAry( Init%KFull, p%nDOF, p%nDOF , 'Init%K',  ErrStat2, ErrMsg2); if(Failed()) return; ! full system stiffness matrix
    CALL AllocAry( Init%M, p%nDOF, p%nDOF , 'Init%M',  ErrStat2, ErrMsg2); if(Failed()) return; ! system mass matrix 
    CALL AllocAry( p%FG,   p%nDOF,          'p%FG'  ,  ErrStat2, ErrMsg2); if(Failed()) return; ! system gravity force vector with line pretension
    CALL AllocAry( p%FC,   p%nDOF,          'p%FC'  ,  ErrStat2, ErrMsg2); if(Failed()) return; ! line pretension only
    Init%K  = 0.0_FEKi
+   Init%KFull = 0.0_FEKi
    Init%M  = 0.0_FEKi
    p%FG    = 0.0_FEKi
    p%FC    = 0.0_FEKi
@@ -1471,6 +1473,7 @@ SUBROUTINE AssembleKM(Init, p, HDFlag, HDInputDataMor, ErrStat, ErrMsg)
       p%FC     ( IDOF )  = p%FC( IDOF ) + FCe(1:12)             ! Note: Pretension cable forces only
       p%FG     ( IDOF )  = p%FG( IDOF ) + FGe(1:12)             ! Note: Gravity forces only
       Init%K(IDOF, IDOF) = Init%K( IDOF, IDOF) + Ke(1:12,1:12)
+      Init%KFull(IDOF, IDOF) = Init%KFull( IDOF, IDOF) + Ke(1:12,1:12)
       
       !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
       !Init%M(IDOF, IDOF) = Init%M( IDOF, IDOF) + Me(1:12,1:12)
@@ -1532,6 +1535,7 @@ SUBROUTINE AssembleKM(Init, p, HDFlag, HDInputDataMor, ErrStat, ErrMsg)
          DO K = 1, 6
             kGlob = p%NodesDOF(iNode)%List(K)
             Init%M(jGlob, kGlob) = Init%M(jGlob, kGlob) + M66(J,K)
+            Init%MG(jGlob, kGlob) = Init%MG(jGlob, kGlob) + M66(J,K)
          ENDDO
       ENDDO
 
@@ -2328,7 +2332,7 @@ SUBROUTINE DirectElimination(Init, p, ErrStat, ErrMsg)
    INTEGER(IntKi),               INTENT(  OUT) :: ErrStat     ! Error status of the operation
    CHARACTER(*),                 INTENT(  OUT) :: ErrMsg      ! Error message if ErrStat /= ErrID_None
    ! Local variables
-   INTEGER(IntKi)                            :: ErrStat2
+   INTEGER(IntKi)                            :: ErrStat2, II, JJ
    CHARACTER(ErrMsgLen)                      :: ErrMsg2
    ! Varaibles for rigid assembly
    type(IList), dimension(:), allocatable    :: RA       !< RA(a) = [e1,..,en]  list of elements forming a rigid link assembly
