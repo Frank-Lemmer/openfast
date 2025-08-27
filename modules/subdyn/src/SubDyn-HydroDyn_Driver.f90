@@ -819,23 +819,28 @@ CONTAINS
       !END IF
       !CALL AbortIfFailed()
       !---------------------- FORCES ----------------------------------------
-      !CALL ReadCom( UnIn, FileName, '--- FORCES INPUTS header', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
-      !CALL ReadVar ( UnIn, FileName, iDummy,  'nApplied Forces', 'Number of applied forces', ErrStat2,  ErrMsg2, UnEcho); 
-      !!call AbortIfFailed()
-      !if (ErrStat2/=ErrID_None) then
-      !   ! TODO Temporary
-      !   call LegacyWarning('Applied loads input missing.')
-      !   allocate(InitInp%AppliedLoads(0), stat=ErrStat2); ErrMsg2='Allocating Forces'; call AbortIfFailed()
-      !else
-      !   allocate(InitInp%AppliedLoads(iDummy), stat=ErrStat2); ErrMsg2='Allocating Forces'; call AbortIfFailed()
-      !   CALL ReadCom( UnIn, FileName, 'JointID    Fx     Fy    Fz     Mx     My     Mz', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
-      !   CALL ReadCom( UnIn, FileName, ' (-)       (N)   (N)    (N)   (Nm)   (Nm)   (Nm)', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
-      !   do i=1,iDummy
-      !      ! Read line and extract loads
-      !      read(UnIn, fmt='(A)', iostat=ErrStat2) Line ; ErrMsg2='Erro reading force input line'//num2lstr(i); call AbortIfFailed()
-      !      call readAppliedForce(Line, InitInp%AppliedLoads(i), PriPath, Errstat2, ErrMsg2); call AbortIfFailed()
-      !   enddo
-      !endif
+      CALL ReadCom( UnIn, FileName, '--- FORCES INPUTS header', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
+      CALL ReadVar ( UnIn, FileName, iDummy,  'nApplied Forces', 'Number of applied forces', ErrStat2,  ErrMsg2, UnEcho); 
+      !call AbortIfFailed()
+      if (ErrStat2/=ErrID_None) then
+         ! TODO Temporary
+         call LegacyWarning('Applied loads input missing.')
+         allocate(InitInp%AppliedLoads(0), stat=ErrStat2); ErrMsg2='Allocating Forces'; call AbortIfFailed()
+      else
+         allocate(InitInp%AppliedLoads(iDummy), stat=ErrStat2); ErrMsg2='Allocating Forces'; call AbortIfFailed()
+         CALL ReadCom( UnIn, FileName, 'JointID    Fx     Fy    Fz     Mx     My     Mz', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
+         CALL ReadCom( UnIn, FileName, ' (-)       (N)   (N)    (N)   (Nm)   (Nm)   (Nm)', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
+         do i=1,iDummy
+            ! Read line and extract loads
+            read(UnIn, fmt='(A)', iostat=ErrStat2) Line ; ErrMsg2='Erro reading force input line'//num2lstr(i); call AbortIfFailed()
+            
+            ! --- FIX: Manually write the line to the echo file ---
+            IF (UnEcho > 0) WRITE(UnEcho, '(A)') TRIM(Line)
+            ! -----------------------------------------------------
+            
+            call readAppliedForce(Line, InitInp%AppliedLoads(i), PriPath, Errstat2, ErrMsg2); call AbortIfFailed()
+         enddo
+      endif
 
    
       if(UnEcho>0) CLOSE( UnEcho )
