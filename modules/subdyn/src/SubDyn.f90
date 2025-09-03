@@ -4004,7 +4004,7 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
    call yaml_write_array(UnSum, 'Nodes', Init%Nodes, ReFmt, ErrStat2, ErrMsg2, AllFmt='1(F8.0,","),3(F15.3,","),(F15.0,","),3(ES15.6,","),ES15.6') !, comment='',label=.true.)
 
    ! Element properties
-   CALL AllocAry( DummyArray,  size(p%ElemProps), 18, 'Elem', ErrStat2, ErrMsg2 ); if(Failed()) return
+   CALL AllocAry( DummyArray,  size(p%ElemProps), 19, 'Elem', ErrStat2, ErrMsg2 ); if(Failed()) return
    do i=1,size(p%ElemProps)
       DummyArray(i,1) = p%Elems(i,1)            ! Should be == i
       DummyArray(i,2) = p%Elems(i,2)            ! Node 1
@@ -4024,10 +4024,50 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
       DummyArray(i,16) = p%ElemProps(i)%Jzz     ! Polar area moment of inertia [m^4]
       DummyArray(i,17) = p%ElemProps(i)%Jt      ! Torsion constant [m^4]
       DummyArray(i,18) = p%ElemProps(i)%T0      ! Pretension [N]
+      iDirCos = p%Elems(i, iMDirCosID)
+      if (iDirCos > 0) then
+         DummyArray(i,19) = Init%COSMs(iDirCos,1) ! COSMID
+      else
+         DummyArray(i,19) = -1                    ! Default COSMID for elements without one
+      endif
    end do
-   write(UnSum, '("#",4x,6(A9),12('//SFmt//'))') 'Elem_[#] ','Node_1','Node_2','Prop_1','Prop_2','Type','Length_[m]','Area_[m^2]','Dens._[kg/m^3]','E_[N/m2]','G_[N/m2]','kappa_x_[-]','kappa_y_[-]','Ixx_[m^4]','Iyy_[m^4]','Jzz_[m^4]','Jt_[m^4]','T0_[N]'
-   call yaml_write_array(UnSum, 'Elements', DummyArray, ReFmt, ErrStat2, ErrMsg2, AllFmt='6(F8.0,","),3(F15.3,","),8(ES15.6,","),ES15.6') !, comment='',label=.true.)
+   write(UnSum, '("#",4x,A9,5(A11),12(A16),A12)') 'Elem_[#] ', 'Node_1', 'Node_2', 'Prop_1', 'Prop_2', 'Type', &
+    'Length_[m]', 'Area_[m^2]', 'Dens._[kg/m^3]', 'E_[N/m2]', 'G_[N/m2]', 'kappa_x_[-]', 'kappa_y_[-]', &
+    'Ixx_[m^4]', 'Iyy_[m^4]', 'Jzz_[m^4]', 'Jt_[m^4]', 'T0_[N]', 'COSMID_[-]'
+   call yaml_write_array(UnSum, 'Elements', DummyArray, ReFmt, ErrStat2, ErrMsg2, AllFmt='6(F8.0,","),3(ES15.6E2,","),8(ES15.6E2,","),ES15.6E2,",",F8.0') !, comment='',label=.true.)
    deallocate(DummyArray)
+   
+      
+   
+   ! SubDyn-HydroDyn - Print out local element stiffness matrices START
+   WRITE(UnSum, '(A)') SectionDivide
+   WRITE(UnSum, '(A)') '# LOCAL ELEMENT STIFFNESS MATRICES (Ke)'
+   WRITE(UnSum, '(A)') SectionDivide
+   
+    WRITE(UnSum, '(A)') 'ElementLocalStiffnessMatrices:'
+    DO i=1,Init%NElem
+       WRITE(UnSum, '(A,I0,A)') '  - Ke_local_elem_', i, ':'  ! Starts a list item that is a map
+       WRITE(UnSum, '(A)')    '      matrix:'                ! Writes the 'matrix' key, indented correctly
+       DO j=1,12 ! Loop through the 12 rows of the matrix
+          ! This format string writes a complete YAML row: "- [ val1, val2, ... ]"
+          WRITE(UnSum, '(A,ES25.15E3,11(A,ES25.15E3),A)') '        - [', REAL(p%ElemProps(i)%Ke_local(j,1), ReKi), &
+          & (', ', REAL(p%ElemProps(i)%Ke_local(j,k), ReKi), k=2,12), ']'
+       ENDDO
+    ENDDO
+   ! SubDyn-HydroDyn - Print out local element stiffness matrices END
+
+   ! SubDyn-HydroDyn - Print out specificially defined cosine matrices START
+   WRITE(UnSum, '(A)') SectionDivide
+   WRITE(UnSum, '(A)') '# USER-DEFINED MEMBER COSINE MATRICES (element to body-fixed)'
+   WRITE(UnSum, '(A)') SectionDivide
+   
+   ! Write header from the input file
+   WRITE(UnSum, '(A9,9(A10))') '#COSMID', 'COSM11', 'COSM12', 'COSM13', 'COSM21', 'COSM22', 'COSM23', 'COSM31', 'COSM32', 'COSM33'
+   
+   ! Write the entire COSMs table from the Init data structure
+   call yaml_write_array(UnSum, 'COSMs', Init%COSMs, ReFmt, ErrStat2, ErrMsg2)
+   ! SubDyn-HydroDyn - Print out specificially defined cosine matrices END
+
 
    ! --- C
    if(size(p%CtrlElem2Channel,1)>0) then

@@ -1055,14 +1055,22 @@ END SUBROUTINE GetOrthVectors
 !> Element stiffness matrix for classical beam elements
 !! shear is true  -- non-tapered Timoshenko beam 
 !! shear is false -- non-tapered Euler-Bernoulli beam 
-SUBROUTINE ElemK_Beam(A, L, Ixx, Iyy, Jzz, Shear, kappa_x, kappa_y, E, G, DirCos, K)
+SUBROUTINE ElemK_Beam(A, L, Ixx, Iyy, Jzz, Shear, kappa_x, kappa_y, E, G, DirCos, K, LocalOnly)
    REAL(ReKi), INTENT( IN) :: A, L, Ixx, Iyy, Jzz, E, G, kappa_x, kappa_y
    REAL(FEKi), INTENT( IN) :: DirCos(3,3) !< From element to global: xg = DC.xe,  Kg = DC.Ke.DC^t
    LOGICAL   , INTENT( IN) :: Shear
    REAL(FEKi), INTENT(OUT) :: K(12, 12) 
+   LOGICAL, OPTIONAL, INTENT(IN) :: LocalOnly
+   LOGICAL :: DoTransform
    ! Local variables
    REAL(FEKi)                            :: Ax, Ay, Kx, Ky
    REAL(FEKi)                            :: DC(12, 12)
+   
+   if (present(LocalOnly)) then
+      DoTransform = .not. LocalOnly
+   else
+      DoTransform = .true.
+   endif
    
    Ax = kappa_x*A
    Ay = kappa_y*A
@@ -1119,26 +1127,38 @@ SUBROUTINE ElemK_Beam(A, L, Ixx, Iyy, Jzz, Shear, kappa_x, kappa_y, E, G, DirCos
    K(8,4) = -K(4,2)
    K(4,8) = -K(4,2)
    
-   DC = 0.0_FEKi
-   DC( 1: 3,  1: 3) = DirCos
-   DC( 4: 6,  4: 6) = DirCos
-   DC( 7: 9,  7: 9) = DirCos
-   DC(10:12, 10:12) = DirCos
+   ! Only do transform if not turned off by function parameter 'LocalOnly'
+   if (DoTransform) then
+       DC = 0.0_FEKi
+       DC( 1: 3,  1: 3) = DirCos
+       DC( 4: 6,  4: 6) = DirCos
+       DC( 7: 9,  7: 9) = DirCos
+       DC(10:12, 10:12) = DirCos
    
-   K = MATMUL( MATMUL(DC, K), TRANSPOSE(DC) ) ! TODO: change me if DirCos convention is  transposed
+       K = MATMUL( MATMUL(DC, K), TRANSPOSE(DC) ) ! TODO: change me if DirCos convention is  transposed
+   endif
    
 END SUBROUTINE ElemK_Beam
 !------------------------------------------------------------------------------------------------------
 !> Element stiffness matrix for pretension cable
 !! Element coordinate system:  z along the cable!
-SUBROUTINE ElemK_Cable(A, L, E, T0, DirCos, K)
+SUBROUTINE ElemK_Cable(A, L, E, T0, DirCos, K, LocalOnly)
    REAL(ReKi), INTENT( IN) :: A, L, E
    REAL(ReKi), INTENT( IN) :: T0 ! Pretension [N]
    REAL(FEKi), INTENT( IN) :: DirCos(3,3) !< From element to global: xg = DC.xe,  Kg = DC.Ke.DC^t
-   REAL(FEKi), INTENT(OUT) :: K(12, 12) 
+   REAL(FEKi), INTENT(OUT) :: K(12, 12)
+   LOGICAL, OPTIONAL, INTENT(IN) :: LocalOnly
+   LOGICAL :: DoTransform
    ! Local variables
    REAL(FEKi) :: L0, Eps0, EAL0, EE
    REAL(FEKi) :: DC(12, 12)
+   
+   if (present(LocalOnly)) then
+      DoTransform = .not. LocalOnly
+   else
+      DoTransform = .true.
+   endif
+   
 
    Eps0 = T0/(E*A)
    L0   = L/(1+Eps0)  ! "rest length" for which pretension would be 0
@@ -1165,25 +1185,35 @@ SUBROUTINE ElemK_Cable(A, L, E, T0, DirCos, K)
    ! K(8,8)= EE
    K(9,9)= EAL0
 
-
-   DC = 0.0_FEKi
-   DC( 1: 3,  1: 3) = DirCos
-   DC( 4: 6,  4: 6) = DirCos
-   DC( 7: 9,  7: 9) = DirCos
-   DC(10:12, 10:12) = DirCos
+   ! Only do transform if not turned off by function parameter 'LocalOnly'
+   if (DoTransform) then
+       DC = 0.0_FEKi
+       DC( 1: 3,  1: 3) = DirCos
+       DC( 4: 6,  4: 6) = DirCos
+       DC( 7: 9,  7: 9) = DirCos
+       DC(10:12, 10:12) = DirCos
    
-   K = MATMUL( MATMUL(DC, K), TRANSPOSE(DC) ) ! TODO: change me if DirCos convention is  transposed
+       K = MATMUL( MATMUL(DC, K), TRANSPOSE(DC) ) ! TODO: change me if DirCos convention is  transposed
+   endif
 END SUBROUTINE ElemK_Cable
 !------------------------------------------------------------------------------------------------------
 !> Element stiffness matrix for spring
 !! The spring element can include diagnal and cross-coupling positions. 
 !! Assuming that the stiffness is symmetric (21 stiffness coefficients). The stiffness matrix could also be non-symmetric, if desired.  
-SUBROUTINE ElemK_Spring(k11, k12, k13, k14, k15, k16, k22, k23, k24, k25, k26, k33, k34, k35, k36, k44, k45, k46, k55, k56, k66, DirCos, K)
+SUBROUTINE ElemK_Spring(k11, k12, k13, k14, k15, k16, k22, k23, k24, k25, k26, k33, k34, k35, k36, k44, k45, k46, k55, k56, k66, DirCos, K, LocalOnly)
    REAL(ReKi), INTENT( IN) :: k11, k12, k13, k14, k15, k16, k22, k23, k24, k25, k26, k33, k34, k35, k36, k44, k45, k46, k55, k56, k66
    REAL(FEKi), INTENT( IN) :: DirCos(3,3) !< From element to global: xg = DC.xe,  Kg = DC.Ke.DC^t
    REAL(FEKi), INTENT(OUT) :: K(12, 12) 
+   LOGICAL, OPTIONAL, INTENT(IN) :: LocalOnly
+   LOGICAL :: DoTransform
    ! Local variables
    REAL(FEKi)                            :: DC(12, 12)
+   
+   if (present(LocalOnly)) then
+      DoTransform = .not. LocalOnly
+   else
+      DoTransform = .true.
+   endif
    
    K(1:12,1:12) = 0.0_FEKi
       
@@ -1318,13 +1348,16 @@ SUBROUTINE ElemK_Spring(k11, k12, k13, k14, k15, k16, k22, k23, k24, k25, k26, k
    K(12, 5) = K(11,6)   
    K(12, 11) = K(11,12)  
    
-   DC = 0.0_FEKi
-   DC( 1: 3,  1: 3) = DirCos
-   DC( 4: 6,  4: 6) = DirCos
-   DC( 7: 9,  7: 9) = DirCos
-   DC(10:12, 10:12) = DirCos
+   ! Only do transform if not turned off by function parameter 'LocalOnly'
+   if (DoTransform) then
+       DC = 0.0_FEKi
+       DC( 1: 3,  1: 3) = DirCos
+       DC( 4: 6,  4: 6) = DirCos
+       DC( 7: 9,  7: 9) = DirCos
+       DC(10:12, 10:12) = DirCos
    
-   K = MATMUL( MATMUL(DC, K), TRANSPOSE(DC) ) ! TODO: change me if DirCos convention is  transposed
+       K = MATMUL( MATMUL(DC, K), TRANSPOSE(DC) ) ! TODO: change me if DirCos convention is  transposed
+   endif
    
 END SUBROUTINE ElemK_Spring
 !------------------------------------------------------------------------------------------------------

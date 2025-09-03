@@ -110,6 +110,7 @@ IMPLICIT NONE
     REAL(ReKi)  :: k56 = 0.0_ReKi      !< Spring cross-coupling stiffness [Nm/rad]
     REAL(ReKi)  :: k66 = 0.0_ReKi      !< Spring rotational stiffness [Nm/rad]
     REAL(R8Ki) , DIMENSION(1:3,1:3)  :: DirCos = 0.0_R8Ki      !< Element direction cosine matrix [-]
+    REAL(R8Ki), dimension(12,12) :: Ke_local  ! Subdyn-HydroDyn, additional output added
     TYPE(AddedMassType)  :: AddedMass 
   END TYPE ElemPropType
 ! =======================

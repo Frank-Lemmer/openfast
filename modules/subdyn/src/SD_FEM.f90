@@ -919,6 +919,7 @@ SUBROUTINE SetElementProperties(Init, p, ErrStat, ErrMsg)
    INTEGER                  :: iDirCos
    REAL(ReKi)               :: D1, D2, Sa1, Sa2, Sb1, Sb2, t1, t2, E, G, rho ! properties of a section
    REAL(FEKi)               :: DirCos(3, 3)              ! direction cosine matrices
+   REAL(FEKi)               :: Ke_local_temp(12,12) !< Temporary local matrix
    REAL(ReKi)               :: L                         ! length of the element
    REAL(ReKi)               :: r1, r2, t, Ixx, Iyy, Jzz, Jt, A, kappa, kappa_x, kappa_y, nu, ratio, ratioSq, D_inner, D_outer
    REAL(ReKi)               :: k11, k12, k13, k14, k15, k16, k22, k23, k24, k25, k26, k33, k34, k35, k36, k44, k45, k46, k55, k56, k66
@@ -1227,6 +1228,31 @@ SUBROUTINE SetElementProperties(Init, p, ErrStat, ErrMsg)
          print*,'Element type unknown',eType
          STOP
       end if
+      
+      ! ######## START SubDyn-HydroDyn COUPLING MOD ###################
+      p%ElemProps(i)%Ke_local = 0.0_FEKi  ! Initialize to zero
+      
+      if (eType==idMemberBeamCirc .or. eType==idMemberBeamRect .or. eType==idMemberBeamArb) then
+         ! Get the local stiffness matrix WITHOUT the global transformation
+         CALL ElemK_Beam(p%ElemProps(i)%Area, p%ElemProps(i)%Length, p%ElemProps(i)%Ixx, p%ElemProps(i)%Iyy, &
+                         p%ElemProps(i)%Jt, p%ElemProps(i)%Shear, p%ElemProps(i)%Kappa_x, p%ElemProps(i)%Kappa_y, &
+                         p%ElemProps(i)%YoungE, p%ElemProps(i)%ShearG, p%ElemProps(i)%DirCos, Ke_local_temp, .TRUE.)
+         p%ElemProps(i)%Ke_local = Ke_local_temp
+
+      else if (eType==idMemberCable) then
+         CALL ElemK_Cable(p%ElemProps(i)%Area, p%ElemProps(i)%Length, p%ElemProps(i)%YoungE, &
+                          p%ElemProps(i)%T0, p%ElemProps(i)%DirCos, Ke_local_temp, .TRUE.)
+         p%ElemProps(i)%Ke_local = Ke_local_temp
+      
+      else if (eType==idMemberSpring) then
+          CALL ElemK_Spring(p%ElemProps(i)%k11, p%ElemProps(i)%k12, p%ElemProps(i)%k13, p%ElemProps(i)%k14, p%ElemProps(i)%k15, p%ElemProps(i)%k16, p%ElemProps(i)%k22, p%ElemProps(i)%k23, &
+                            p%ElemProps(i)%k24, p%ElemProps(i)%k25, p%ElemProps(i)%k26, p%ElemProps(i)%k33, p%ElemProps(i)%k34, p%ElemProps(i)%k35, p%ElemProps(i)%k36, p%ElemProps(i)%k44, &
+                            p%ElemProps(i)%k45, p%ElemProps(i)%k46, p%ElemProps(i)%k55, p%ElemProps(i)%k56, p%ElemProps(i)%k66, p%ElemProps(i)%DirCos, Ke_local_temp, .TRUE.)
+          p%ElemProps(i)%Ke_local = Ke_local_temp
+      endif
+      
+      ! ######## END SubDyn-HydroDyn COUPLING MOD ###################
+      
    enddo ! I end loop over elements
 CONTAINS
    LOGICAL FUNCTION Failed()
