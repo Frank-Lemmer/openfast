@@ -1634,6 +1634,10 @@ SUBROUTINE GetHDAddedMassForSDElements(Init, p, HDInputDataMor, ErrStat, ErrMsg)
    REAL(FEKi), dimension(3,2) :: JPosHd
    REAL(FEKi), dimension(3) :: NPos1, NPos2, NPos, MemberStartToEnd
    LOGICAL :: FOUND_SD, FOUND_SDAX
+   ! >>> New variables for interpolation
+   REAL(FEKi)               :: CaA_interp1, CaA_interp2, CaB_interp1, CaB_interp2
+   REAL(FEKi)               :: HD_Length, SD_Node1_Dist, SD_Node2_Dist, s1, s2
+   ! <<< End new variables
    
    EPS = 1.0e-6
    
@@ -1737,12 +1741,65 @@ SUBROUTINE GetHDAddedMassForSDElements(Init, p, HDInputDataMor, ErrStat, ErrMsg)
                 NPos2  = Init%NODES(NIndx2, 2:4) !Subdyn nodes
 
                 !Element coefficient:
-                if (isBetweenAandB(JPosHd(:,1), JPosHd(:,2), NPos1) .AND. isBetweenAandB(JPosHd(:,1), JPosHd(:,2), NPos2)) then 
-                   p%ElemProps(i)%AddedMass%HDCaA    = (CaA1 + CaA2)/2.
-                   p%ElemProps(i)%AddedMass%HDCaB    = (CaB1 + CaB2)/2.
+                if (isBetweenAandB(JPosHd(:,1), JPosHd(:,2), NPos1) .AND. isBetweenAandB(JPosHd(:,1), JPosHd(:,2), NPos2)) then
+                   ! >>> Start interpolation logic
+                   HD_Length = NORM2(JPosHd(:,2) - JPosHd(:,1))
+                   if (HD_Length > EPS) then
+                       SD_Node1_Dist = NORM2(NPos1 - JPosHd(:,1))
+                       SD_Node2_Dist = NORM2(NPos2 - JPosHd(:,1))
+                       s1 = SD_Node1_Dist / HD_Length
+                       s2 = SD_Node2_Dist / HD_Length
+                       ! Linear interpolation: C(s) = C1*(1-s) + C2*s
+                       CaA_interp1 = CaA1 * (1.0 - s1) + CaA2 * s1
+                       CaA_interp2 = CaA1 * (1.0 - s2) + CaA2 * s2
+                       CaB_interp1 = CaB1 * (1.0 - s1) + CaB2 * s1
+                       CaB_interp2 = CaB1 * (1.0 - s2) + CaB2 * s2
+                       ! Average the interpolated values at the two nodes of the SD element
+                       p%ElemProps(i)%AddedMass%HDCaA = (CaA_interp1 + CaA_interp2) / 2.0
+                       p%ElemProps(i)%AddedMass%HDCaB = (CaB_interp1 + CaB_interp2) / 2.0
+                   else
+                       ! Fallback to simple average if HD member has zero length
+                       p%ElemProps(i)%AddedMass%HDCaA = (CaA1 + CaA2) / 2.0
+                       p%ElemProps(i)%AddedMass%HDCaB = (CaB1 + CaB2) / 2.0
+                   endif
+                   ! <<< End interpolation logic
+                   
+                   p%ElemProps(i)%AddedMass%HDCaA    = (CaA_interp1 + CaA_interp2)/2.
+                   p%ElemProps(i)%AddedMass%HDCaB    = (CaB_interp1 + CaB_interp2)/2.
                    p%ElemProps(i)%AddedMass%HDCrossSectionalAreaA  = Pi*((A1 + A2)/2.)**2/4.0 !Equivalent circular cross-section
                    p%ElemProps(i)%AddedMass%HDCrossSectionalAreaB  = Pi*((B1 + B2)/2.)**2/4.0 !Equivalent circular cross-section
                    FOUND_SD = .true.
+                   
+                                      ! --- START DEBUG OUTPUT ---
+                   WRITE(*,'(A)')   '++++++++++++++++++++++++++++++++++++++++'
+                   WRITE(*,'(A,I3)') '+++ Found Mapping for HD Member #', ihd
+                   WRITE(*,'(A)')   ' '
+                   WRITE(*,'(A)')   '-- HydroDyn Member Info --'
+                   IF (HDINPUTDATAMOR%INPMEMBERS(ihd)%MSECGEOM == MSecGeom_Cyl) THEN
+                       WRITE(*,'(A)') '   Geometry: Cylindrical'
+                       WRITE(*,'(A,F8.3)') '   Diameter 1: ', A1
+                       WRITE(*,'(A,F8.3)') '   Diameter 2: ', A2
+                   ELSE
+                       WRITE(*,'(A)') '   Geometry: Rectangular'
+                       WRITE(*,'(A,F8.3,A,F8.3)') '   Side A/B 1: ', A1, ' / ', B1
+                       WRITE(*,'(A,F8.3,A,F8.3)') '   Side A/B 2: ', A2, ' / ', B2
+                   ENDIF
+                   WRITE(*,'(A,3(F9.3,A))') '   Joint 1 Pos: ', JPosHd(1,1), ', ', JPosHd(2,1), ', ', JPosHd(3,1)
+                   WRITE(*,'(A,3(F9.3,A))') '   Joint 2 Pos: ', JPosHd(1,2), ', ', JPosHd(2,2), ', ', JPosHd(3,2)
+                   WRITE(*,'(A,F8.3,A,F8.3)') '   Coeffs CaA1/CaA2: ', CaA1, ' / ', CaA2
+                   WRITE(*,'(A,F8.3,A,F8.3)') '   Coeffs CaB1/CaB2: ', CaB1, ' / ', CaB2
+                   WRITE(*,'(A)')   ' '
+                   WRITE(*,'(A,I3)')   '-- Mapped to SubDyn Element #', i
+                   WRITE(*,'(A,I5,A,I5)') '   Nodes: ', NIndx1, ' -> ', NIndx2
+                   WRITE(*,'(A,3(F9.3,A))') '   Node 1 Pos: ', NPos1(1), ', ', NPos1(2), ', ', NPos1(3)
+                   WRITE(*,'(A,3(F9.3,A))') '   Node 2 Pos: ', NPos2(1), ', ', NPos2(2), ', ', NPos2(3)
+                   WRITE(*,'(A,F8.3)')      '   => Assigned Avg CaA: ', p%ElemProps(i)%AddedMass%HDCaA
+                   WRITE(*,'(A,F8.3)')      '   => Assigned Avg CaB: ', p%ElemProps(i)%AddedMass%HDCaB
+                   WRITE(*,'(A,ES12.5)')    '   => Assigned CrossSectionalAreaA: ', p%ElemProps(i)%AddedMass%HDCrossSectionalAreaA
+                   WRITE(*,'(A,ES12.5)')    '   => Assigned CrossSectionalAreaB: ', p%ElemProps(i)%AddedMass%HDCrossSectionalAreaB
+                   WRITE(*,'(A)')   '++++++++++++++++++++++++++++++++++++++++'
+                   WRITE(*,'(A)')   ' '
+                   ! --- END DEBUG OUTPUT ---
                 endif
             ENDIF
          ENDDO
@@ -2897,6 +2954,22 @@ SUBROUTINE ElemA(L, Ixx, Iyy, CaA, CaB, AaddA, AaddB, WaterDensity, DirCos, M)
    rx = WaterDensity*Ixx;
    ry = WaterDensity*Iyy;
    po = WaterDensity*Jzz*L;
+   
+    ! --- START DEBUG OUTPUT ---
+   WRITE(*,'(A)') '--- Debug Output from ElemA Subroutine ---'
+   WRITE(*,'(A,ES14.6)') 'Input L         = ', L
+   WRITE(*,'(A,ES14.6)') 'Input CaA       = ', CaA
+   WRITE(*,'(A,ES14.6)') 'Input CaB       = ', CaB
+   WRITE(*,'(A,ES14.6)') 'Input AaddA     = ', AaddA
+   WRITE(*,'(A,ES14.6)') 'Input AaddB     = ', AaddB
+   WRITE(*,'(A,ES14.6)') 'Input Ixx       = ', Ixx
+   WRITE(*,'(A,ES14.6)') 'Input Iyy       = ', Iyy
+   WRITE(*,'(A,ES14.6)') '=> Calculated tA = ', tA
+   WRITE(*,'(A,ES14.6)') '=> Calculated tB = ', tB
+   WRITE(*,'(A,ES14.6)') '=> Calculated rx = ', rx
+   WRITE(*,'(A,ES14.6)') '=> Calculated ry = ', ry
+   WRITE(*,'(A)') '------------------------------------------'
+   ! --- END DEBUG OUTPUT ---
 
    M(1:12,1:12) = 0.0_FEKi
 
