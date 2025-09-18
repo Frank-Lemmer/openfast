@@ -1483,7 +1483,7 @@ SUBROUTINE AssembleKM(Init, p, HDFlag, HDInputDataMor, ErrStat, ErrMsg)
             if(Failed()) return
          endif
          
-         WaterDensity = 1025.
+         WaterDensity = 997.2 !HDInputDataMor%WtrDens
          
          !Only for beam members:
          if (p%ElemProps(i)%AddedMass%HDCaA > 0.0 .OR. p%ElemProps(i)%AddedMass%HDCaB > 0.0) then
@@ -2968,6 +2968,7 @@ SUBROUTINE ElemA(L, Ixx, Iyy, CaA, CaB, AaddA, AaddB, WaterDensity, DirCos, M)
    WRITE(*,'(A,ES14.6)') '=> Calculated tB = ', tB
    WRITE(*,'(A,ES14.6)') '=> Calculated rx = ', rx
    WRITE(*,'(A,ES14.6)') '=> Calculated ry = ', ry
+   WRITE(*,'(A,ES14.6)') 'WaterDensity     = ',WaterDensity
    WRITE(*,'(A)') '------------------------------------------'
    ! --- END DEBUG OUTPUT ---
 

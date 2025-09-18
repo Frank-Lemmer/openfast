@@ -393,6 +393,7 @@ IMPLICIT NONE
 ! =======================
 ! =========  Morison_InitInputType  =======
   TYPE, PUBLIC :: Morison_InitInputType
+    REAL(ReKi)  :: WtrDens = 0.0_ReKi      !< Water density (scalar, positive-valued) [kg/m^3]
     REAL(ReKi)  :: Gravity = 0.0_ReKi      !< Gravity (scalar, positive-valued) [m/s^2]
     INTEGER(IntKi)  :: WaveDisp = 0_IntKi      !< Method of computing Wave Kinematics. (0: use undisplaced position, 1: use displaced position, 2: use low-pass filtered displaced position)  [-]
     INTEGER(IntKi)  :: AMMod = 0_IntKi      !< Method of computing distributed added-mass force. (0: Only and always on nodes below SWL at the undisplaced position. 1: Up to the instantaneous free surface) [overwrite to 0 when WaveMod = 0 or 6 or when WaveStMod = 0 in SeaState] [-]
@@ -3189,6 +3190,7 @@ subroutine Morison_CopyInitInput(SrcInitInputData, DstInitInputData, CtrlCode, E
    character(*), parameter        :: RoutineName = 'Morison_CopyInitInput'
    ErrStat = ErrID_None
    ErrMsg  = ''
+   DstInitInputData%WtrDens = SrcInitInputData%WtrDens
    DstInitInputData%Gravity = SrcInitInputData%Gravity
    DstInitInputData%WaveDisp = SrcInitInputData%WaveDisp
    DstInitInputData%AMMod = SrcInitInputData%AMMod

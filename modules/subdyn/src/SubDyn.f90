@@ -3858,7 +3858,6 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
    
    !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
    REAL(FEKi)               :: Mg(12, 12)
-   REAL(FEKi)               :: WaterDensity = 1025.
    REAL(FEKi),allocatable   :: MA(:,:)    ! Leader DOFs mass matrix
    REAL(ReKi)               :: M_A(6,6)    ! Equivalent mass matrix at origin
    !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
