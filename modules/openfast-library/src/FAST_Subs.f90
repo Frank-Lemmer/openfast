@@ -196,7 +196,7 @@ SUBROUTINE FAST_InitializeAll( t_initial, p_FAST, y_FAST, m_FAST, ED, SED, BD, S
    END IF
 
    ! ... Open and read input files ...
-   ! also, set applicable farm paramters and turbine reference position also for graphics output
+   ! also, set applicable farm parameters and turbine reference position also for graphics output
    if (PRESENT(ExternInitData)) then
       p_FAST%FarmIntegration = ExternInitData%FarmIntegration
       p_FAST%TurbinePos = ExternInitData%TurbinePos
@@ -1133,6 +1133,13 @@ SUBROUTINE FAST_InitializeAll( t_initial, p_FAST, y_FAST, m_FAST, ED, SED, BD, S
    IF (p_FAST%CompMooring == Module_MAP) THEN
       !bjj: until we modify this, MAP requires HydroDyn to be used. (perhaps we could send air density from AeroDyn or something...)
 
+      ! If mode shape visualization requested when MAP is active, set error and return
+      if (p_FAST%WrVTK == VTK_ModeShapes) then
+         call SetErrStat(ErrID_Fatal, "Mode shape visualization is not supported when using MAP.", ErrStat, ErrMsg, RoutineName)
+         call Cleanup()
+         return
+      end if
+
       CALL WrScr(NewLine) !bjj: I'm printing two blank lines here because MAP seems to be writing over the last line on the screen.
 
 !      Init%InData_MAP%rootname          =  p_FAST%OutFileRoot        ! Output file name
@@ -1195,6 +1202,9 @@ SUBROUTINE FAST_InitializeAll( t_initial, p_FAST, y_FAST, m_FAST, ED, SED, BD, S
 
       Init%InData_MD%Linearize = p_FAST%Linearize
       if (p_FAST%WrVTK /= VTK_None) Init%InData_MD%VisMeshes=.true.
+
+      ! Assign the seastate pointer here
+      Init%InData_MD%WaveField => Init%OutData_SeaSt%WaveField
 
       CALL MD_Init( Init%InData_MD, MD%Input(1), MD%p, MD%x(STATE_CURR), MD%xd(STATE_CURR), MD%z(STATE_CURR), &
                     MD%OtherSt(STATE_CURR), MD%y, MD%m, p_FAST%dt_module( MODULE_MD ), Init%OutData_MD, ErrStat2, ErrMsg2 )
@@ -2404,7 +2414,7 @@ SUBROUTINE FAST_InitOutput( p_FAST, y_FAST, Init, ErrStat, ErrMsg )
    !......................................................
    ! Set the number of output columns from each module
    !......................................................
-   y_FAST%numOuts = 0    ! Inintialize entire array
+   y_FAST%numOuts = 0    ! Initialize entire array
 
    IF ( ALLOCATED( Init%OutData_IfW%WriteOutputHdr  ) ) y_FAST%numOuts(Module_IfW)  = SIZE(Init%OutData_IfW%WriteOutputHdr)
    IF ( ALLOCATED( Init%OutData_ExtInfw%WriteOutputHdr ) ) y_FAST%numOuts(Module_ExtInfw) = SIZE(Init%OutData_ExtInfw%WriteOutputHdr)
@@ -3642,7 +3652,7 @@ END DO
       IF (p%WrVTK == VTK_ModeShapes) THEN
          p%n_VTKTime = 1
       ELSE IF (TmpTime > p%TMax) THEN
-         p%n_VTKTime = HUGE(p%n_VTKTime)
+         p%n_VTKTime = NINT( p%TMax  / p%DT )   ! write at init and last step only
       ELSE
          p%n_VTKTime = NINT( TmpTime / p%DT )
          ! I'll warn if p%n_VTKTime*p%DT is not TmpTime
@@ -9544,7 +9554,7 @@ SUBROUTINE ExitThisProgram( p_FAST, y_FAST, m_FAST, ED, SED, BD, SrvD, AD, ADsk,
    end if
 
    IF (p_FAST%WrSttsTime .and. PrintRunTimes) THEN
-      CALL RunTimes( m_FAST%StrtTime, m_FAST%UsrTime1, m_FAST%SimStrtTime, m_FAST%UsrTime2, m_FAST%t_global, UnSum=y_FAST%UnSum, DescStrIn=p_FAST%TDesc )
+      CALL RunTimes( m_FAST%StrtTime, m_FAST%UsrTime1, m_FAST%SimStrtTime, m_FAST%UsrTime2, m_FAST%t_global, UnSum=y_FAST%UnSum, DescStrIn=p_FAST%TDesc, useCases=p_FAST%CompAeroMaps )
    END IF
    IF (y_FAST%UnSum > 0) THEN
       CLOSE(y_FAST%UnSum)
@@ -9992,6 +10002,12 @@ SUBROUTINE FAST_CreateCheckpoint_T(t_initial, n_t_global, NumTurbines, Turbine, 
       ! init error status
    ErrStat = ErrID_None
    ErrMsg  = ""
+
+   ! Writing checkpoint files is not supported when using MAP
+   if (Turbine%p_FAST%CompMooring == Module_MAP) then
+      call SetErrStat(ErrID_Fatal, "Writing checkpoint files is not supported when using MAP.", ErrStat, ErrMsg, RoutineName)
+      return
+   end if
       
    FileName    = TRIM(CheckpointRoot)//'.chkp'
    DLLFileName = TRIM(CheckpointRoot)//'.dll.chkp'

@@ -449,17 +449,17 @@ subroutine Init_ADI_ForDriver(iCase, ADI, dvr, FED, dt, needInitIW, errStat, err
       ! UA does not like changes of dt between cases
       if ( .not. EqualRealNos(ADI%p%AD%DT, dt) ) then
          call WrScr('Info: dt is changing between cases, AeroDyn will be re-initialized')
-         call ADI_End( ADI%u(1:1), ADI%p, ADI%x(1), ADI%xd(1), ADI%z(1), ADI%OtherState(1), ADI%y, ADI%m, errStat2, errMsg2); call SetErrStat(errStat2, errMsg2, errStat, errMsg, 'Init_ADI_ForDriver'); if(Failed()) return
-         !call AD_Dvr_DestroyAeroDyn_Data   (AD     , errStat2, errMsg2); call SetErrStat(errStat2, errMsg2, errStat, errMsg, RoutineName)
          needInit=.true.
       endif
       if (ADI%p%AD%Wake_Mod == WakeMod_FVW) then
          call WrScr('[INFO] OLAF is used, AeroDyn will be re-initialized')
          needInit=.true.
       endif
+      
       if (needInit) then
          call ADI_End( ADI%u(1:1), ADI%p, ADI%x(1), ADI%xd(1), ADI%z(1), ADI%OtherState(1), ADI%y, ADI%m, errStat2, errMsg2); call SetErrStat(errStat2, errMsg2, errStat, errMsg, 'Init_ADI_ForDriver'); if(Failed()) return
       endif
+      
    endif
 
    ! if wind profile changed in a combined case, need to re-init
@@ -477,6 +477,7 @@ subroutine Init_ADI_ForDriver(iCase, ADI, dvr, FED, dt, needInitIW, errStat, err
       InitInp%IW_InitInp%RefHt      = dvr%IW_InitInp%RefHt
       InitInp%IW_InitInp%PLExp      = dvr%IW_InitInp%PLExp
       InitInp%IW_InitInp%MHK        = dvr%MHK
+      InitInp%IW_InitInp%OutputAccel= dvr%MHK /= MHK_None
       InitInp%IW_InitInp%FilePassingMethod = 0_IntKi ! read input file instead of passed file data
       ! AeroDyn
       InitInp%AD%Gravity   = 9.80665_ReKi

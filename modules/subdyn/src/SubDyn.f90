@@ -25,6 +25,7 @@ Module SubDyn
    
    USE NWTC_Library
    USE SubDyn_Types
+   USE SubDyn_Output_Params, only: MaxOutPts
    USE SubDyn_Output
    USE SubDyn_Tests
    USE SD_FEM
@@ -748,7 +749,7 @@ SUBROUTINE SD_CalcOutput( t, u, p, x, xd, z, OtherState, y, m, ErrStat, ErrMsg )
       if (p%GuyanLoadCorrection.and.p%Floating) then
          ! --- Special case for floating with extra moment, we use "rotated loads" m%F_L previously computed
          ! Contributions from external forces - Note: T_I is in the rotated frame
-         call GetExtForceOnInterfaceDOF(p, m%Fext, F_I)
+         call GetExtForceOnInterfaceDOF(p, m, F_I)
          Y1_Guy_R =   matmul( F_I, p%TI )     ! = - [-T_I.^T] F_R  = [T_I.^T] F_R =~ F_R T_I (~: FORTRAN convention)
          Y1_Guy_R =   matmul(RRb2g, Y1_Guy_R)
          Y1_Guy_L = - matmul(p%D1_142, m%F_L) ! = - (- T_I^T . Phi_Rb^T) F_L, rotated loads
@@ -758,7 +759,7 @@ SUBROUTINE SD_CalcOutput( t, u, p, x, xd, z, OtherState, y, m, ErrStat, ErrMsg )
       else ! .not.(p%GuyanLoadCorrection.and.p%Floating)
          ! Compute "non-rotated" external force on internal (F_L) and interface nodes (F_I)
          call GetExtForceOnInternalDOF(u, p, x, m, m%F_L, ErrStat2, ErrMsg2, GuyanLoadCorrection=(p%GuyanLoadCorrection), RotateLoads=.False.); if(Failed()) return
-         call GetExtForceOnInterfaceDOF(p, m%Fext, F_I)
+         call GetExtForceOnInterfaceDOF(p, m, F_I)
          ! Contributions from external forces
          Y1_Guy_R =   matmul( F_I, p%TI )     ! = - [-T_I.^T] F_R  = [T_I.^T] F_R =~ F_R T_I (~: FORTRAN convention)
          Y1_Guy_L = - matmul(p%D1_142, m%F_L) ! = - (- T_I^T . Phi_Rb^T) F_L, non-rotated loads
@@ -774,7 +775,7 @@ SUBROUTINE SD_CalcOutput( t, u, p, x, xd, z, OtherState, y, m, ErrStat, ErrMsg )
       ! 
       ! ! Compute "non-rotated" external force on internal (F_L) and interface nodes (F_I)
       ! call GetExtForceOnInternalDOF(u, p, x, m, m%F_L, ErrStat2, ErrMsg2, GuyanLoadCorrection=(p%GuyanLoadCorrection), RotateLoads=.False.); if(Failed()) return
-      ! call GetExtForceOnInterfaceDOF(p, m%Fext, F_I)
+      ! call GetExtForceOnInterfaceDOF(p, m, F_I)
       !
       ! ! Contributions from external forces
       ! Y1_Guy_R =   matmul( F_I, p%TI )     ! = - [-T_I.^T] F_R  = [T_I.^T] F_R =~ F_R T_I (~: FORTRAN convention)
@@ -1574,7 +1575,7 @@ END IF
 ! OutList - list of requested parameters to output to a file
 CALL ReadCom( UnIn, SDInputFile, 'SSOutList',ErrStat2, ErrMsg2, UnEc ); if(Failed()) return
 
-ALLOCATE(Init%SSOutList(MaxOutChs), STAT=ErrStat2)
+ALLOCATE(Init%SSOutList(MaxOutPts + p%OutAllInt*p%OutAllDims), STAT=ErrStat2)
 If (Check( ErrStat2 /= ErrID_None ,'Error allocating SSOutList arrays')) return
 CALL ReadOutputList ( UnIn, SDInputFile, Init%SSOutList, p%NumOuts, 'SSOutList', 'List of outputs requested', ErrStat2, ErrMsg2, UnEc ); if(Failed()) return
 CALL CleanUp()
@@ -3555,17 +3556,23 @@ END SUBROUTINE GetExtForceOnInternalDOF
 
 !------------------------------------------------------------------------------------------------------
 !> Construct force vector on interface DOF (I) 
-!! NOTE: This function should only be called after GetExtForceOnInternalDOF 
-SUBROUTINE GetExtForceOnInterfaceDOF(  p, Fext, F_I)
+!! NOTE: This function should only be called after GetExtForceOnInternalDOF, which populates Fext
+SUBROUTINE GetExtForceOnInterfaceDOF( p, m, F_I )
    type(SD_ParameterType),   intent(in  ) :: p ! Parameters
-   real(ReKi), dimension(:), intent(in  ) :: Fext !< Vector of external forces on un-reduced DOF
+   type(SD_MiscVarType),     intent(in  ) :: m ! Misc, for storage optimization of Fext and Fext_red
    real(ReKi)            ,   intent(out ) :: F_I(6*p%nNodes_I)          !< External force on interface DOF
    integer :: iSDNode, startDOF, I
-   DO I = 1, p%nNodes_I 
-      iSDNode = p%Nodes_I(I,1)
-      startDOF = (I-1)*6 + 1 ! NOTE: for now we have 6 DOF per interface nodes
-      F_I(startDOF:startDOF+5) = Fext(p%NodesDOF(iSDNode)%List(1:6)) !TODO try to use Fext_red
-   ENDDO
+
+   IF (p%reduced) THEN
+      F_I = m%Fext_red(p%IDI_Rb)
+   ELSE
+      DO I = 1, p%nNodes_I
+         iSDNode  = p%Nodes_I(I,1)
+         startDOF = (I-1)*6 + 1 ! NOTE: for now we have 6 DOF per interface nodes
+         F_I(startDOF:startDOF+5) = m%Fext(p%NodesDOF(iSDNode)%List(1:6))
+      ENDDO
+   END IF
+
 END SUBROUTINE GetExtForceOnInterfaceDOF
 
 
@@ -3851,10 +3858,14 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
    real(ReKi), dimension(:,:), allocatable :: DummyArray ! 
    ! Variables for Eigenvalue analysis 
    real(R8Ki), dimension(:,:), allocatable :: AA, BB, CC, DD ! Linearization matrices
-   character(len=*),parameter :: ReFmt='ES15.6E2'
-   character(len=*),parameter :: ReFmtKM='ES25.15E3'
+   character(len=*),parameter :: ReFmt='ES25.16E3'
+   character(len=*),parameter :: ReFmtKM='ES25.16E3'
    character(len=*),parameter :: SFmt='A15,1x' ! Need +1 for comma compared to ReFmt
    character(len=*),parameter :: IFmt='I7'
+   
+! Local variables for Nodes2DOF output
+   integer(IntKi), allocatable :: NodesDOF_List_Matrix(:,:)
+   integer(IntKi)              :: max_list_size, list_size
    
    !-------------Specific to this SubDyn-Hydrodyn coupling-----------------
    REAL(FEKi)               :: Mg(12, 12)
@@ -3998,6 +4009,41 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
    WRITE(UnSum, '(A)') '#Index map from elements to DOF'
    WRITE(UnSum, '(A)') '#DOF'
    call yaml_write_array(UnSum, 'Elems2DOF', p%ElemsDOF, IFmt, ErrStat2, ErrMsg2, comment='(test)',label=.true.)
+
+      ! --- Create a rectangular matrix from the p%NodesDOF(:)%List ragged array
+   ! First, find the maximum list size to determine the number of columns
+   max_list_size = 0
+   do i = 1, p%nNodes
+       list_size = size(p%NodesDOF(i)%List)
+       if (list_size > max_list_size) then
+           max_list_size = list_size
+       end if
+   end do
+
+   ! Allocate, initialize, and populate the temporary matrix
+   if (max_list_size > 0) then
+       call AllocAry(NodesDOF_List_Matrix, p%nNodes, max_list_size, 'NodesDOF_List_Matrix', ErrStat2, ErrMsg2)
+       if(Failed()) return
+       NodesDOF_List_Matrix = 0 ! Pad with 0 for nodes with fewer DOFs
+
+       do i = 1, p%nNodes
+           list_size = size(p%NodesDOF(i)%List)
+           if (list_size > 0) then
+               NodesDOF_List_Matrix(i, 1:list_size) = p%NodesDOF(i)%List(:)
+           end if
+       end do
+
+       ! Write the rectangular matrix to the YAML file
+       WRITE(UnSum, '()')
+       WRITE(UnSum, '(A)') '#Index map from nodes to DOFs (padded with 0 for nodes with fewer DOFs)'
+       call yaml_write_array(UnSum, 'Nodes2DOF', NodesDOF_List_Matrix, IFmt, ErrStat2, ErrMsg2, comment='(Node x DOF indices)',label=.true.)
+
+       ! Deallocate the temporary matrix
+       if(allocated(NodesDOF_List_Matrix)) deallocate(NodesDOF_List_Matrix)
+   endif
+   ! --- END of Nodes2DOF output modification
+   
+   
    ! Nodes properties
    write(UnSum, '("#",4x,1(A9),8('//trim(SFmt)//'))') 'Node_[#]', 'X_[m]','Y_[m]','Z_[m]', 'JType_[-]', 'JDirX_[-]','JDirY_[-]','JDirZ_[-]','JStff_[Nm/rad]'
    call yaml_write_array(UnSum, 'Nodes', Init%Nodes, ReFmt, ErrStat2, ErrMsg2, AllFmt='1(F8.0,","),3(F15.3,","),(F15.0,","),3(ES15.6,","),ES15.6') !, comment='',label=.true.)
@@ -4036,7 +4082,20 @@ SUBROUTINE OutSummary(Init, p, m, InitInput, CBparams, Modes, Omega, Omega_Gy, E
    call yaml_write_array(UnSum, 'Elements', DummyArray, ReFmt, ErrStat2, ErrMsg2, AllFmt='6(F8.0,","),3(ES15.6E2,","),8(ES15.6E2,","),ES15.6E2,",",F8.0') !, comment='',label=.true.)
    deallocate(DummyArray)
    
-      
+  !-------------------------------------------------------------------------------------------------------------
+  ! INSERT THIS NEW BLOCK HERE
+  !-------------------------------------------------------------------------------------------------------------
+  ! Concentrated mass properties
+  WRITE(UnSum, '(A)') SectionDivide
+  WRITE(UnSum, '(A)') '# CONCENTRATED MASSES'
+  WRITE(UnSum, '(A)') SectionDivide
+  write(UnSum, '("#",4x,A10,10(A15))') 'Joint_[#]', 'Mass_[kg]', 'Jxx_[kg-m^2]', 'Jyy_[kg-m^2]', 'Jzz_[kg-m^2]', 'Jxy_[kg-m^2]', 'Jxz_[kg-m^2]', 'Jyz_[kg-m^2]', 'MCGx_[m]', 'MCGy_[m]', 'MCGz_[m]'
+  call yaml_write_array(UnSum, 'ConcentratedMasses', Init%Cmass, ReFmt, ErrStat2, ErrMsg2, AllFmt='F10.0,",",9(ES15.6E2,","),ES15.6E2')
+
+  !-------------------------------------------------------------------------------------------------------------
+  ! END OF NEW BLOCK
+  !-------------------------------------------------------------------------------------------------------------
+   
    
    ! SubDyn-HydroDyn - Print out local element stiffness matrices START
    WRITE(UnSum, '(A)') SectionDivide
