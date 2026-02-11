@@ -738,10 +738,8 @@ CONTAINS
       
       CALL ReadVar( UnIn, FileName, InitInpHD%HDInputFile, 'HDInputFile', 'Hydrodyn input filename', ErrStat2, ErrMsg2, UnEcho); call AbortIfFailed()
       
-      IF (InitInp%HDFlag) then
-         IF ( PathIsRelative( InitInpHD%HDInputFile ) ) then
-            InitInpHD%HDInputFile = TRIM(PriPath)//TRIM(InitInpHD%HDInputFile)
-         END IF
+      IF ( PathIsRelative( InitInpHD%HDInputFile ) ) then
+         InitInpHD%HDInputFile = TRIM(PriPath)//TRIM(InitInpHD%HDInputFile)
       END IF
       
       ! SeaStInputFile
