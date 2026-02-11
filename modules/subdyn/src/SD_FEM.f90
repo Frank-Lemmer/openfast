@@ -1483,7 +1483,8 @@ SUBROUTINE AssembleKM(Init, p, HDFlag, HDInputDataMor, ErrStat, ErrMsg)
             if(Failed()) return
          endif
          
-         WaterDensity = 997.2 !HDInputDataMor%WtrDens
+         WaterDensity = 1025 !HDInputDataMor%WtrDens
+         print*,'Water density set to: 1025kg/m3')'
          
          !Only for beam members:
          if (p%ElemProps(i)%AddedMass%HDCaA > 0.0 .OR. p%ElemProps(i)%AddedMass%HDCaB > 0.0) then
